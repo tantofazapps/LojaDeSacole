@@ -54,7 +54,7 @@ service cloud.firestore {
     
     function isValidStore() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['name', 'ownerId', 'pixKey', 'phone', 'avatarUrl', 'theme', 'deliveryEnabled', 'deliveryFee', 'pickupEnabled', 'pickupAddress']) &&
+      return hasOnlyAllowedFields(['name', 'ownerId', 'pixKey', 'phone', 'avatarUrl', 'theme', 'deliveryEnabled', 'deliveryFee', 'pickupEnabled', 'pickupAddress', 'manufacturingEnabled', 'expensesEnabled']) &&
              hasRequiredFields(['name', 'ownerId']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() < 50 &&
@@ -65,7 +65,9 @@ service cloud.firestore {
              (!('deliveryEnabled' in data) || data.deliveryEnabled is bool) &&
              (!('deliveryFee' in data) || (data.deliveryFee is number && data.deliveryFee >= 0)) &&
              (!('pickupEnabled' in data) || data.pickupEnabled is bool) &&
-             (!('pickupAddress' in data) || (data.pickupAddress is string && data.pickupAddress.size() <= 200));
+             (!('pickupAddress' in data) || (data.pickupAddress is string && data.pickupAddress.size() <= 200)) &&
+             (!('manufacturingEnabled' in data) || data.manufacturingEnabled is bool) &&
+             (!('expensesEnabled' in data) || data.expensesEnabled is bool);
     }
     
     function isValidFlavor() {
