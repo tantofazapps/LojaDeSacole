@@ -1,0 +1,120 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Private user profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" }
+      },
+      "required": ["name", "email"]
+    },
+    "Store": {
+      "title": "Store",
+      "description": "Public store profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "pixKey": { "type": "string" },
+        "phone": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "theme": { "type": "string", "enum": ["orange", "pink", "purple", "green", "blue"] }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "Flavor": {
+      "title": "Flavor",
+      "description": "Sacolé flavor",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "available": { "type": "boolean" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "available", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "flavorId": { "type": "string" },
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "quantity": { "type": "number" }
+            },
+            "required": ["flavorId", "name", "price", "quantity"]
+          }
+        },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "paid", "completed", "cancelled"] },
+        "paymentMethod": { "type": "string", "enum": ["pix", "cash"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerName", "items", "totalAmount", "status", "paymentMethod", "createdAt"]
+    },
+    "ShoppingItem": {
+      "title": "Shopping Item",
+      "description": "Item to buy",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "completed", "createdAt"]
+    },
+    "Batch": {
+      "title": "Manufacturing Batch",
+      "description": "Batch of sacolés being made",
+      "type": "object",
+      "properties": {
+        "flavorId": { "type": "string" },
+        "flavorName": { "type": "string" },
+        "quantity": { "type": "number" },
+        "status": { "type": "string", "enum": ["preparing", "freezing", "ready"] },
+        "readyAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["flavorId", "flavorName", "quantity", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Private user profile"
+    },
+    "/stores/{storeId}": {
+      "schema": { "$ref": "#/entities/Store" },
+      "description": "Public store profile"
+    },
+    "/stores/{storeId}/flavors/{flavorId}": {
+      "schema": { "$ref": "#/entities/Flavor" },
+      "description": "Sacolé flavors for the store"
+    },
+    "/stores/{storeId}/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer orders for the store"
+    },
+    "/stores/{storeId}/shoppingList/{itemId}": {
+      "schema": { "$ref": "#/entities/ShoppingItem" },
+      "description": "Shopping list items"
+    },
+    "/stores/{storeId}/batches/{batchId}": {
+      "schema": { "$ref": "#/entities/Batch" },
+      "description": "Manufacturing batches"
+    }
+  }
+}

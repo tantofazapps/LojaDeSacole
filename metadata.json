@@ -1,0 +1,5 @@
+{
+  "name": "Sacolés da Dinéia",
+  "description": "Aplicativo para gerenciar vendas e pedidos de sacolés caseiros, com cardápio online e pagamento via PIX.",
+  "requestFramePermissions": []
+}
