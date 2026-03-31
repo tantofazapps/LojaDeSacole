@@ -70,11 +70,12 @@ service cloud.firestore {
     
     function isValidFlavor() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['name', 'description', 'price', 'available', 'imageUrl', 'createdAt']) &&
+      return hasOnlyAllowedFields(['name', 'description', 'price', 'category', 'available', 'imageUrl', 'createdAt']) &&
              hasRequiredFields(['name', 'price', 'available', 'createdAt']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
              data.price is number && data.price >= 0 &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
              data.available is bool &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500000)) &&
              isValidDateString(data.createdAt);
