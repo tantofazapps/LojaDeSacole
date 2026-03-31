@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { logOut, auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, onSnapshot, doc, getDoc, setDoc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
-import { ShoppingBag, Settings, LogOut, Plus, Edit2, Trash2, Share2, Copy, CheckCircle2, ListTodo, Clock, Image as ImageIcon, BarChart3, Tag, Truck, MapPin } from 'lucide-react';
+import { ShoppingBag, Settings, LogOut, Plus, Edit2, Trash2, Share2, Copy, CheckCircle2, ListTodo, Clock, Image as ImageIcon, BarChart3, Tag, Truck, MapPin, DollarSign } from 'lucide-react';
 import { SacoleIcon } from '../components/SacoleIcon';
 import { compressImage, THEMES } from '../utils/helpers';
 
@@ -31,8 +31,9 @@ export default function AdminDashboard() {
     { path: '/admin', icon: <BarChart3 className="w-6 h-6" />, label: 'Dashboard' },
     { path: '/admin/pedidos', icon: <ShoppingBag className="w-6 h-6" />, label: 'Pedidos' },
     { path: '/admin/sabores', icon: <SacoleIcon className="w-6 h-6" />, label: 'Produtos' },
-    { path: '/admin/fabricacao', icon: <Clock className="w-6 h-6" />, label: 'Fabricação' },
+    ...(store?.manufacturingEnabled !== false ? [{ path: '/admin/fabricacao', icon: <Clock className="w-6 h-6" />, label: 'Fabricação' }] : []),
     { path: '/admin/compras', icon: <ListTodo className="w-6 h-6" />, label: 'Compras' },
+    ...(store?.expensesEnabled !== false ? [{ path: '/admin/despesas', icon: <DollarSign className="w-6 h-6" />, label: 'Despesas' }] : []),
     { path: '/admin/promocoes', icon: <Tag className="w-6 h-6" />, label: 'Promoções' },
     { path: '/admin/configuracoes', icon: <Settings className="w-6 h-6" />, label: 'Ajustes' },
   ];
@@ -83,10 +84,70 @@ export default function AdminDashboard() {
           <Route path="/sabores" element={<Flavors store={store} />} />
           <Route path="/fabricacao" element={<Manufacturing store={store} />} />
           <Route path="/compras" element={<ShoppingList store={store} />} />
+          <Route path="/despesas" element={<Expenses store={store} />} />
           <Route path="/promocoes" element={<Promotions store={store} />} />
           <Route path="/configuracoes" element={<SettingsPage store={store} />} />
         </Routes>
       </main>
+    </div>
+  );
+}
+
+function Expenses({ store }: { store: any }) {
+  const theme = THEMES[(store?.theme as keyof typeof THEMES) || 'orange'];
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+
+  useEffect(() => {
+    if (!store?.id) return;
+    
+    const expensesRef = collection(db, 'stores', store.id, 'expenses');
+    const unsubscribe = onSnapshot(expensesRef, (snapshot) => {
+      setExpenses(snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) })));
+    });
+    
+    return () => unsubscribe();
+  }, [store?.id]);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!store?.id || !description.trim() || !amount) return;
+    
+    try {
+      await addDoc(collection(db, 'stores', store.id, 'expenses'), {
+        description: description.trim(),
+        amount: parseFloat(amount.replace(',', '.')),
+        date: new Date(date).toISOString(),
+      });
+      setDescription('');
+      setAmount('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `stores/${store.id}/expenses`);
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-3xl shadow-xl">
+      <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Despesas</h1>
+      <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Descrição" className="p-3 border border-gray-200 rounded-xl" />
+        <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Valor (R$)" className="p-3 border border-gray-200 rounded-xl" />
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} className="p-3 border border-gray-200 rounded-xl" />
+        <button type="submit" className={`p-3 ${theme.primary} text-white rounded-xl font-bold`}>Adicionar</button>
+      </form>
+      <div className="space-y-4">
+        {expenses.map(expense => (
+          <div key={expense.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+            <div>
+              <p className="font-bold text-gray-800">{expense.description}</p>
+              <p className="text-sm text-gray-500">{new Date(expense.date).toLocaleDateString()}</p>
+            </div>
+            <p className="font-bold text-gray-800">R$ {expense.amount.toFixed(2)}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1039,6 +1100,8 @@ function SettingsPage({ store }: { store: any }) {
   const [deliveryFee, setDeliveryFee] = useState('');
   const [pickupEnabled, setPickupEnabled] = useState(false);
   const [pickupAddress, setPickupAddress] = useState('');
+  const [manufacturingEnabled, setManufacturingEnabled] = useState(true);
+  const [expensesEnabled, setExpensesEnabled] = useState(true);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -1052,6 +1115,8 @@ function SettingsPage({ store }: { store: any }) {
       setDeliveryFee(store.deliveryFee?.toString() || '');
       setPickupEnabled(store.pickupEnabled || false);
       setPickupAddress(store.pickupAddress || '');
+      setManufacturingEnabled(store.manufacturingEnabled !== false);
+      setExpensesEnabled(store.expensesEnabled !== false);
     }
   }, [store]);
 
@@ -1082,7 +1147,9 @@ function SettingsPage({ store }: { store: any }) {
         deliveryEnabled,
         deliveryFee: deliveryFee ? parseFloat(deliveryFee.replace(',', '.')) : 0,
         pickupEnabled,
-        pickupAddress
+        pickupAddress,
+        manufacturingEnabled,
+        expensesEnabled
       });
       alert('Configurações salvas com sucesso!');
     } catch (error) {
@@ -1194,6 +1261,20 @@ function SettingsPage({ store }: { store: any }) {
                     <textarea value={pickupAddress} onChange={e => setPickupAddress(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none resize-none" rows={2} placeholder="Ex: Rua das Flores, 123 - Centro" />
                   </div>
                 )}
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={manufacturingEnabled} onChange={e => setManufacturingEnabled(e.target.checked)} className={`w-5 h-5 ${currentTheme.text} rounded focus:ring-opacity-50`} />
+                  <span className="text-gray-800 font-medium">Habilitar Fabricação</span>
+                </label>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={expensesEnabled} onChange={e => setExpensesEnabled(e.target.checked)} className={`w-5 h-5 ${currentTheme.text} rounded focus:ring-opacity-50`} />
+                  <span className="text-gray-800 font-medium">Habilitar Despesas</span>
+                </label>
               </div>
             </div>
           </div>
