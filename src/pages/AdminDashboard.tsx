@@ -338,6 +338,8 @@ function Flavors({ store }: { store: any }) {
   const [category, setCategory] = useState('Sacolé');
   const [available, setAvailable] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
+  const [stock, setStock] = useState('');
+  const [productionTime, setProductionTime] = useState('');
 
   useEffect(() => {
     if (!store?.id) return;
@@ -378,6 +380,8 @@ function Flavors({ store }: { store: any }) {
         category,
         available,
         imageUrl,
+        stock: parseInt(stock) || 0,
+        productionTime: parseInt(productionTime) || 0,
         createdAt: editingFlavor ? editingFlavor.createdAt : new Date().toISOString()
       };
 
@@ -412,6 +416,8 @@ function Flavors({ store }: { store: any }) {
     setCategory('Sacolé');
     setAvailable(true);
     setImageUrl('');
+    setStock('');
+    setProductionTime('');
     setIsAdding(false);
     setEditingFlavor(null);
   };
@@ -423,6 +429,8 @@ function Flavors({ store }: { store: any }) {
     setCategory(flavor.category || 'Sacolé');
     setAvailable(flavor.available);
     setImageUrl(flavor.imageUrl || '');
+    setStock(flavor.stock?.toString() || '0');
+    setProductionTime(flavor.productionTime?.toString() || '0');
     setEditingFlavor(flavor);
     setIsAdding(true);
   };

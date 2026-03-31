@@ -70,13 +70,15 @@ service cloud.firestore {
     
     function isValidFlavor() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['name', 'description', 'price', 'category', 'available', 'imageUrl', 'createdAt']) &&
-             hasRequiredFields(['name', 'price', 'available', 'createdAt']) &&
+      return hasOnlyAllowedFields(['name', 'description', 'price', 'category', 'available', 'imageUrl', 'createdAt', 'stock', 'productionTime']) &&
+             hasRequiredFields(['name', 'price', 'available', 'createdAt', 'stock', 'productionTime']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
              data.price is number && data.price >= 0 &&
              (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
              data.available is bool &&
+             data.stock is number && data.stock >= 0 &&
+             data.productionTime is number && data.productionTime >= 0 &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500000)) &&
              isValidDateString(data.createdAt);
     }
@@ -99,9 +101,11 @@ service cloud.firestore {
 
     function isValidShoppingItem() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['name', 'completed', 'createdAt']) &&
-             hasRequiredFields(['name', 'completed', 'createdAt']) &&
+      return hasOnlyAllowedFields(['name', 'quantity', 'unit', 'completed', 'createdAt']) &&
+             hasRequiredFields(['name', 'quantity', 'unit', 'completed', 'createdAt']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.quantity is number && data.quantity > 0 &&
+             data.unit is string && data.unit.size() > 0 && data.unit.size() < 20 &&
              data.completed is bool &&
              isValidDateString(data.createdAt);
     }
@@ -128,6 +132,15 @@ service cloud.firestore {
              data.discountValue is number && data.discountValue > 0 &&
              data.active is bool &&
              isValidDateString(data.createdAt);
+    }
+
+    function isValidExpense() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['description', 'amount', 'date']) &&
+             hasRequiredFields(['description', 'amount', 'date']) &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 200 &&
+             data.amount is number && data.amount > 0 &&
+             isValidDateString(data.date);
     }
 
     // ===============================================================
@@ -179,6 +192,13 @@ service cloud.firestore {
         allow read: if true;
         allow create: if isStoreOwner(storeId) && isValidPromotion();
         allow update: if isStoreOwner(storeId) && isValidPromotion() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isStoreOwner(storeId);
+      }
+
+      match /expenses/{expenseId} {
+        allow read: if isStoreOwner(storeId);
+        allow create: if isStoreOwner(storeId) && isValidExpense();
+        allow update: if isStoreOwner(storeId) && isValidExpense();
         allow delete: if isStoreOwner(storeId);
       }
     }
