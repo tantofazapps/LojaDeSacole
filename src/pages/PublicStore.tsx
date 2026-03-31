@@ -234,18 +234,39 @@ export default function PublicStore() {
   return (
     <div className={`min-h-screen ${theme.light} pb-32`}>
       {/* Header */}
-      <header className={`bg-gradient-to-r ${theme.gradient} text-white shadow-md sticky top-0 z-10`}>
-        <div className="max-w-4xl mx-auto p-4 md:p-6 flex items-center gap-4">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0">
+      <header className={`bg-gradient-to-r ${theme.gradient} text-white shadow-md sticky top-0 z-10 relative overflow-hidden`}>
+        {/* Decorative background pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="sacole-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M15 10l1.5-2h3L21 10 M14 10h8v14a4 4 0 0 1-8 0V10z M14 14h8 M14 18h8 M14 22h8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </pattern>
+            </defs>
+            <rect x="0" y="0" width="100%" height="100%" fill="url(#sacole-pattern)" />
+          </svg>
+        </div>
+        
+        <div className="max-w-4xl mx-auto p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 relative z-10 text-center md:text-left">
+          <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-xl flex-shrink-0 border-4 border-white/20">
             {store.avatarUrl ? (
               <img src={store.avatarUrl} alt="Logo" className="w-full h-full object-cover" />
             ) : (
-              <SacoleIcon className={`w-8 h-8 ${theme.text}`} />
+              <SacoleIcon className={`w-12 h-12 ${theme.text}`} />
             )}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">{store.name}</h1>
-            <p className="text-white/80 text-sm">Escolha seus sabores favoritos!</p>
+          <div className="flex-1">
+            <h1 className="text-3xl md:text-4xl font-black mb-2 drop-shadow-sm">{store.name}</h1>
+            <p className="text-white/90 text-lg font-medium">Escolha seus sabores favoritos e faça seu pedido!</p>
+            
+            {store.phone && (
+              <div className="mt-4 inline-flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                </svg>
+                {store.phone}
+              </div>
+            )}
           </div>
         </div>
       </header>
