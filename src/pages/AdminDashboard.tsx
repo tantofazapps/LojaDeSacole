@@ -253,6 +253,7 @@ function DashboardStats({ store }: { store: any }) {
 function Orders({ store }: { store: any }) {
   const theme = THEMES[(store?.theme as keyof typeof THEMES) || 'orange'];
   const [orders, setOrders] = useState<any[]>([]);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   useEffect(() => {
     if (!store?.id) return;
@@ -287,21 +288,27 @@ function Orders({ store }: { store: any }) {
     }
   };
 
+  const filteredOrders = showCompleted ? orders : orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6 md:mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Pedidos</h1>
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} className={`w-4 h-4 ${theme.text} rounded`} />
+          Exibir finalizados
+        </label>
       </div>
       
-      {orders.length === 0 ? (
+      {filteredOrders.length === 0 ? (
         <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm text-center">
           <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-medium text-gray-600">Nenhum pedido ainda</h3>
+          <h3 className="text-xl font-medium text-gray-600">Nenhum pedido {showCompleted ? '' : 'pendente'}</h3>
           <p className="text-gray-400 mt-2">Compartilhe sua loja para começar a receber pedidos!</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map(order => (
+          {filteredOrders.map(order => (
             <div key={order.id} className={`bg-white p-4 md:p-6 rounded-3xl shadow-sm border ${theme.border}`}>
               <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
                 <div>
@@ -791,6 +798,7 @@ function Manufacturing({ store }: { store: any }) {
 function ShoppingList({ store }: { store: any }) {
   const theme = THEMES[(store?.theme as keyof typeof THEMES) || 'orange'];
   const [items, setItems] = useState<any[]>([]);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [newItem, setNewItem] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState('un');
@@ -849,9 +857,17 @@ function ShoppingList({ store }: { store: any }) {
     }
   };
 
+  const filteredItems = showCompleted ? items : items.filter(i => !i.completed);
+
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 md:mb-8">Lista de Compras</h1>
+      <div className="flex justify-between items-center mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Lista de Compras</h1>
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} className={`w-4 h-4 ${theme.text} rounded`} />
+          Exibir finalizados
+        </label>
+      </div>
       
       <form onSubmit={handleAdd} className="flex flex-wrap gap-2 mb-6">
         <input 
@@ -881,13 +897,13 @@ function ShoppingList({ store }: { store: any }) {
       </form>
 
       <div className={`bg-white rounded-3xl shadow-sm border ${theme.border} overflow-hidden`}>
-        {items.length === 0 ? (
+        {filteredItems.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            Sua lista de compras está vazia.
+            Sua lista de compras está vazia {showCompleted ? '' : 'de itens pendentes'}.
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {items.map(item => (
+            {filteredItems.map(item => (
               <li key={item.id} className={`flex items-center gap-3 p-4 transition-colors ${item.completed ? 'bg-gray-50' : `${theme.hoverLight}/50`}`}>
                 <button onClick={() => toggleItem(item.id, !item.completed)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${item.completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}`}>
                   {item.completed && <CheckCircle2 className="w-4 h-4" />}
