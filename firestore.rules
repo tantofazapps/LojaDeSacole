@@ -54,14 +54,18 @@ service cloud.firestore {
     
     function isValidStore() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['name', 'ownerId', 'pixKey', 'phone', 'avatarUrl', 'theme']) &&
+      return hasOnlyAllowedFields(['name', 'ownerId', 'pixKey', 'phone', 'avatarUrl', 'theme', 'deliveryEnabled', 'deliveryFee', 'pickupEnabled', 'pickupAddress']) &&
              hasRequiredFields(['name', 'ownerId']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() < 50 &&
              (!('pixKey' in data) || (data.pixKey is string && data.pixKey.size() <= 100)) &&
              (!('phone' in data) || (data.phone is string && data.phone.size() <= 20)) &&
              (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 500000)) &&
-             (!('theme' in data) || (data.theme in ['orange', 'pink', 'purple', 'green', 'blue']));
+             (!('theme' in data) || (data.theme in ['orange', 'pink', 'purple', 'green', 'blue'])) &&
+             (!('deliveryEnabled' in data) || data.deliveryEnabled is bool) &&
+             (!('deliveryFee' in data) || (data.deliveryFee is number && data.deliveryFee >= 0)) &&
+             (!('pickupEnabled' in data) || data.pickupEnabled is bool) &&
+             (!('pickupAddress' in data) || (data.pickupAddress is string && data.pickupAddress.size() <= 200));
     }
     
     function isValidFlavor() {
@@ -78,10 +82,13 @@ service cloud.firestore {
     
     function isValidOrder() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['customerName', 'customerPhone', 'items', 'totalAmount', 'status', 'paymentMethod', 'createdAt']) &&
+      return hasOnlyAllowedFields(['customerName', 'customerPhone', 'deliveryMethod', 'deliveryAddress', 'deliveryFee', 'items', 'totalAmount', 'status', 'paymentMethod', 'createdAt']) &&
              hasRequiredFields(['customerName', 'items', 'totalAmount', 'status', 'paymentMethod', 'createdAt']) &&
              data.customerName is string && data.customerName.size() > 0 && data.customerName.size() < 100 &&
              (!('customerPhone' in data) || (data.customerPhone is string && data.customerPhone.size() <= 20)) &&
+             (!('deliveryMethod' in data) || (data.deliveryMethod in ['delivery', 'pickup'])) &&
+             (!('deliveryAddress' in data) || (data.deliveryAddress is string && data.deliveryAddress.size() <= 200)) &&
+             (!('deliveryFee' in data) || (data.deliveryFee is number && data.deliveryFee >= 0)) &&
              data.items is list && data.items.size() > 0 && data.items.size() <= 50 &&
              data.totalAmount is number && data.totalAmount >= 0 &&
              data.status in ['pending', 'paid', 'completed', 'cancelled'] &&
@@ -107,6 +114,18 @@ service cloud.firestore {
              data.quantity is number && data.quantity > 0 &&
              data.status in ['preparing', 'freezing', 'ready'] &&
              (!('readyAt' in data) || isValidDateString(data.readyAt)) &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidPromotion() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['name', 'description', 'discountType', 'discountValue', 'active', 'createdAt']) &&
+             hasRequiredFields(['name', 'discountType', 'discountValue', 'active', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             data.discountType in ['percentage', 'fixed'] &&
+             data.discountValue is number && data.discountValue > 0 &&
+             data.active is bool &&
              isValidDateString(data.createdAt);
     }
 
@@ -152,6 +171,13 @@ service cloud.firestore {
         allow read: if isStoreOwner(storeId);
         allow create: if isStoreOwner(storeId) && isValidBatch();
         allow update: if isStoreOwner(storeId) && isValidBatch() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isStoreOwner(storeId);
+      }
+
+      match /promotions/{promotionId} {
+        allow read: if true;
+        allow create: if isStoreOwner(storeId) && isValidPromotion();
+        allow update: if isStoreOwner(storeId) && isValidPromotion() && request.resource.data.createdAt == resource.data.createdAt;
         allow delete: if isStoreOwner(storeId);
       }
     }

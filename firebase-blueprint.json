@@ -20,7 +20,11 @@
         "phone": { "type": "string" },
         "ownerId": { "type": "string" },
         "avatarUrl": { "type": "string" },
-        "theme": { "type": "string", "enum": ["orange", "pink", "purple", "green", "blue"] }
+        "theme": { "type": "string", "enum": ["orange", "pink", "purple", "green", "blue"] },
+        "deliveryEnabled": { "type": "boolean" },
+        "deliveryFee": { "type": "number" },
+        "pickupEnabled": { "type": "boolean" },
+        "pickupAddress": { "type": "string" }
       },
       "required": ["name", "ownerId"]
     },
@@ -45,6 +49,9 @@
       "properties": {
         "customerName": { "type": "string" },
         "customerPhone": { "type": "string" },
+        "deliveryMethod": { "type": "string", "enum": ["delivery", "pickup"] },
+        "deliveryAddress": { "type": "string" },
+        "deliveryFee": { "type": "number" },
         "items": {
           "type": "array",
           "items": {
@@ -89,6 +96,20 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["flavorId", "flavorName", "quantity", "status", "createdAt"]
+    },
+    "Promotion": {
+      "title": "Promotion",
+      "description": "Store promotion or discount",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "discountType": { "type": "string", "enum": ["percentage", "fixed"] },
+        "discountValue": { "type": "number" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "discountType", "discountValue", "active", "createdAt"]
     }
   },
   "firestore": {
@@ -115,6 +136,10 @@
     "/stores/{storeId}/batches/{batchId}": {
       "schema": { "$ref": "#/entities/Batch" },
       "description": "Manufacturing batches"
+    },
+    "/stores/{storeId}/promotions/{promotionId}": {
+      "schema": { "$ref": "#/entities/Promotion" },
+      "description": "Store promotions"
     }
   }
 }

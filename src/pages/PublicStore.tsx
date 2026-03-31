@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, doc, getDoc, getDocs, addDoc, query, where } from 'firebase/firestore';
-import { ShoppingCart, Plus, Minus, CheckCircle2, Copy, ArrowLeft, Image as ImageIcon } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, CheckCircle2, Copy, ArrowLeft, Image as ImageIcon, Truck, MapPin, Tag } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { SacoleIcon } from '../components/SacoleIcon';
 import { THEMES } from '../utils/helpers';
@@ -11,6 +11,7 @@ export default function PublicStore() {
   const { storeId } = useParams<{ storeId: string }>();
   const [store, setStore] = useState<any>(null);
   const [flavors, setFlavors] = useState<any[]>([]);
+  const [promotions, setPromotions] = useState<any[]>([]);
   const [cart, setCart] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
   
@@ -18,6 +19,8 @@ export default function PublicStore() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('pickup');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('pix');
   const [orderComplete, setOrderComplete] = useState<any>(null);
   const [copiedPix, setCopiedPix] = useState(false);
@@ -28,12 +31,25 @@ export default function PublicStore() {
       try {
         const storeDoc = await getDoc(doc(db, 'stores', storeId));
         if (storeDoc.exists()) {
-          setStore({ id: storeDoc.id, ...storeDoc.data() });
+          const storeData = { id: storeDoc.id, ...storeDoc.data() };
+          setStore(storeData);
+          
+          // Set default delivery method based on what's enabled
+          if (storeData.deliveryEnabled && !storeData.pickupEnabled) {
+            setDeliveryMethod('delivery');
+          } else if (storeData.pickupEnabled && !storeData.deliveryEnabled) {
+            setDeliveryMethod('pickup');
+          }
           
           // Fetch flavors
           const flavorsQuery = query(collection(db, 'stores', storeId, 'flavors'), where('available', '==', true));
           const flavorsSnap = await getDocs(flavorsQuery);
           setFlavors(flavorsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+          // Fetch active promotions
+          const promosQuery = query(collection(db, 'stores', storeId, 'promotions'), where('active', '==', true));
+          const promosSnap = await getDocs(promosQuery);
+          setPromotions(promosSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, `stores/${storeId}`);
@@ -66,7 +82,32 @@ export default function PublicStore() {
     return { ...flavor, quantity };
   }).filter(item => item.name);
 
-  const totalAmount = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  
+  // Calculate discount
+  let discount = 0;
+  let appliedPromo = null;
+  if (promotions.length > 0) {
+    // Simple logic: apply the best promotion
+    let bestDiscount = 0;
+    promotions.forEach(promo => {
+      let currentDiscount = 0;
+      if (promo.discountType === 'percentage') {
+        currentDiscount = subtotal * (promo.discountValue / 100);
+      } else if (promo.discountType === 'fixed') {
+        currentDiscount = promo.discountValue;
+      }
+      
+      if (currentDiscount > bestDiscount && currentDiscount <= subtotal) {
+        bestDiscount = currentDiscount;
+        appliedPromo = promo;
+      }
+    });
+    discount = bestDiscount;
+  }
+
+  const deliveryFee = deliveryMethod === 'delivery' && store?.deliveryEnabled ? (store.deliveryFee || 0) : 0;
+  const totalAmount = subtotal - discount + deliveryFee;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +117,9 @@ export default function PublicStore() {
       const orderData = {
         customerName,
         customerPhone,
+        deliveryMethod: store.deliveryEnabled || store.pickupEnabled ? deliveryMethod : null,
+        deliveryAddress: deliveryMethod === 'delivery' ? deliveryAddress : null,
+        deliveryFee,
         items: cartItems.map(item => ({
           flavorId: item.id,
           name: item.name,
@@ -189,6 +233,28 @@ export default function PublicStore() {
                   </li>
                 ))}
               </ul>
+              
+              <div className="space-y-2 mb-4 pt-4 border-t border-gray-200/50">
+                <div className="flex justify-between items-center text-gray-600 text-sm">
+                  <span>Subtotal</span>
+                  <span>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                </div>
+                
+                {appliedPromo && (
+                  <div className="flex justify-between items-center text-green-600 text-sm font-medium">
+                    <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> {appliedPromo.name}</span>
+                    <span>- R$ {discount.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                )}
+                
+                {deliveryMethod === 'delivery' && store?.deliveryEnabled && (
+                  <div className="flex justify-between items-center text-gray-600 text-sm">
+                    <span>Taxa de Entrega</span>
+                    <span>R$ {deliveryFee.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                )}
+              </div>
+
               <div className={`border-t ${theme.border} pt-4 flex justify-between items-center`}>
                 <span className="font-bold text-gray-800">Total</span>
                 <span className={`text-2xl font-bold ${theme.text}`}>R$ {totalAmount.toFixed(2).replace('.', ',')}</span>
@@ -204,8 +270,55 @@ export default function PublicStore() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Telefone / WhatsApp (opcional)</label>
                 <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className={`w-full p-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-opacity-50 outline-none text-lg`} placeholder="(00) 00000-0000" />
               </div>
+
+              {(store.deliveryEnabled || store.pickupEnabled) && (
+                <div className="pt-4 border-t border-gray-100">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Opções de Entrega</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    {store.deliveryEnabled && (
+                      <label className={`cursor-pointer border-2 rounded-2xl p-4 flex items-center gap-3 transition-all ${deliveryMethod === 'delivery' ? `${theme.border} ${theme.light}` : 'border-gray-200'}`}>
+                        <input type="radio" name="delivery" value="delivery" checked={deliveryMethod === 'delivery'} onChange={() => setDeliveryMethod('delivery')} className="sr-only" />
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${deliveryMethod === 'delivery' ? `${theme.primary} text-white` : 'bg-gray-100 text-gray-500'}`}>
+                          <Truck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="font-bold text-gray-800 block">Receber em Casa</span>
+                          <span className="text-xs text-gray-500">Taxa: R$ {store.deliveryFee?.toFixed(2).replace('.', ',') || '0,00'}</span>
+                        </div>
+                      </label>
+                    )}
+                    
+                    {store.pickupEnabled && (
+                      <label className={`cursor-pointer border-2 rounded-2xl p-4 flex items-center gap-3 transition-all ${deliveryMethod === 'pickup' ? `${theme.border} ${theme.light}` : 'border-gray-200'}`}>
+                        <input type="radio" name="delivery" value="pickup" checked={deliveryMethod === 'pickup'} onChange={() => setDeliveryMethod('pickup')} className="sr-only" />
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${deliveryMethod === 'pickup' ? `${theme.primary} text-white` : 'bg-gray-100 text-gray-500'}`}>
+                          <MapPin className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="font-bold text-gray-800 block">Retirar no Local</span>
+                          <span className="text-xs text-gray-500">Grátis</span>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+
+                  {deliveryMethod === 'delivery' && store.deliveryEnabled && (
+                    <div className="animate-in fade-in slide-in-from-top-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Endereço de Entrega</label>
+                      <textarea required value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} className={`w-full p-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-opacity-50 outline-none resize-none`} rows={3} placeholder="Rua, Número, Bairro, Complemento..." />
+                    </div>
+                  )}
+
+                  {deliveryMethod === 'pickup' && store.pickupEnabled && store.pickupAddress && (
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 animate-in fade-in slide-in-from-top-2">
+                      <p className="text-sm font-medium text-gray-700 mb-1">Endereço para Retirada:</p>
+                      <p className="text-gray-600">{store.pickupAddress}</p>
+                    </div>
+                  )}
+                </div>
+              )}
               
-              <div>
+              <div className="pt-4 border-t border-gray-100">
                 <label className="block text-sm font-medium text-gray-700 mb-3">Forma de Pagamento</label>
                 <div className="grid grid-cols-2 gap-4">
                   <label className={`cursor-pointer border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? `${theme.border} ${theme.light}` : 'border-gray-200'}`}>
@@ -260,12 +373,17 @@ export default function PublicStore() {
             <p className="text-white/90 text-lg font-medium">Escolha seus sabores favoritos e faça seu pedido!</p>
             
             {store.phone && (
-              <div className="mt-4 inline-flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+              <a 
+                href={`https://wa.me/${store.phone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm transition-colors"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                 </svg>
-                {store.phone}
-              </div>
+                Falar no WhatsApp
+              </a>
             )}
           </div>
         </div>

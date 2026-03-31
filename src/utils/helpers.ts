@@ -41,6 +41,7 @@ export const THEMES = {
     hover: 'hover:bg-orange-600',
     text: 'text-orange-500',
     light: 'bg-orange-50',
+    hoverLight: 'hover:bg-orange-50',
     border: 'border-orange-200',
     gradient: 'from-orange-500 to-amber-500'
   },
@@ -49,6 +50,7 @@ export const THEMES = {
     hover: 'hover:bg-pink-600',
     text: 'text-pink-500',
     light: 'bg-pink-50',
+    hoverLight: 'hover:bg-pink-50',
     border: 'border-pink-200',
     gradient: 'from-pink-500 to-rose-500'
   },
@@ -57,6 +59,7 @@ export const THEMES = {
     hover: 'hover:bg-purple-600',
     text: 'text-purple-500',
     light: 'bg-purple-50',
+    hoverLight: 'hover:bg-purple-50',
     border: 'border-purple-200',
     gradient: 'from-purple-500 to-fuchsia-500'
   },
@@ -65,6 +68,7 @@ export const THEMES = {
     hover: 'hover:bg-emerald-600',
     text: 'text-emerald-500',
     light: 'bg-emerald-50',
+    hoverLight: 'hover:bg-emerald-50',
     border: 'border-emerald-200',
     gradient: 'from-emerald-500 to-teal-500'
   },
@@ -73,6 +77,7 @@ export const THEMES = {
     hover: 'hover:bg-blue-600',
     text: 'text-blue-500',
     light: 'bg-blue-50',
+    hoverLight: 'hover:bg-blue-50',
     border: 'border-blue-200',
     gradient: 'from-blue-500 to-cyan-500'
   }
