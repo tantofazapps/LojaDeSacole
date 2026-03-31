@@ -31,7 +31,7 @@ export default function PublicStore() {
       try {
         const storeDoc = await getDoc(doc(db, 'stores', storeId));
         if (storeDoc.exists()) {
-          const storeData = { id: storeDoc.id, ...storeDoc.data() };
+          const storeData = { id: storeDoc.id, ...(storeDoc.data() as any) };
           setStore(storeData);
           
           // Set default delivery method based on what's enabled
@@ -344,6 +344,13 @@ export default function PublicStore() {
     );
   }
 
+  const groupedFlavors = flavors.reduce((acc, flavor) => {
+    const category = flavor.category || 'Sacolé';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(flavor);
+    return acc;
+  }, {} as Record<string, any[]>);
+
   return (
     <div className={`min-h-screen ${theme.light} pb-32`}>
       {/* Header */}
@@ -370,7 +377,7 @@ export default function PublicStore() {
           </div>
           <div className="flex-1">
             <h1 className="text-3xl md:text-4xl font-black mb-2 drop-shadow-sm">{store.name}</h1>
-            <p className="text-white/90 text-lg font-medium">Escolha seus sabores favoritos e faça seu pedido!</p>
+            <p className="text-white/90 text-lg font-medium">Escolha seus produtos favoritos e faça seu pedido!</p>
             
             {store.phone && (
               <a 
@@ -394,48 +401,55 @@ export default function PublicStore() {
         {flavors.length === 0 ? (
           <div className="text-center py-12">
             <SacoleIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-gray-600">Nenhum sabor disponível no momento</h3>
+            <h3 className="text-xl font-medium text-gray-600">Nenhum produto disponível no momento</h3>
             <p className="text-gray-400 mt-2">Volte mais tarde!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-            {flavors.map(flavor => (
-              <div key={flavor.id} className={`bg-white p-4 md:p-5 rounded-3xl shadow-sm border ${theme.border} flex flex-col h-full`}>
-                <div className="flex gap-4 mb-4">
-                  <div className="w-20 h-20 md:w-24 md:h-24 bg-gray-100 rounded-2xl flex-shrink-0 overflow-hidden flex items-center justify-center">
-                    {flavor.imageUrl ? (
-                      <img src={flavor.imageUrl} alt={flavor.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <SacoleIcon className="w-8 h-8 text-gray-300" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg md:text-xl font-bold text-gray-800 leading-tight mb-1">{flavor.name}</h3>
-                    <span className={`font-bold ${theme.text} ${theme.light} px-3 py-1 rounded-full inline-block text-sm`}>
-                      R$ {flavor.price.toFixed(2).replace('.', ',')}
-                    </span>
-                  </div>
-                </div>
-                
-                {flavor.description && <p className="text-gray-500 text-sm mb-6 flex-1">{flavor.description}</p>}
-                
-                <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-                  {cart[flavor.id] ? (
-                    <div className={`${theme.light} rounded-2xl p-1 w-full flex items-center justify-between`}>
-                      <button onClick={() => removeFromCart(flavor.id)} className={`w-10 h-10 flex items-center justify-center bg-white ${theme.text} rounded-xl shadow-sm transition-colors`}>
-                        <Minus className="w-5 h-5" />
-                      </button>
-                      <span className="font-bold text-lg text-gray-800">{cart[flavor.id]}</span>
-                      <button onClick={() => addToCart(flavor.id)} className={`w-10 h-10 flex items-center justify-center ${theme.primary} text-white rounded-xl shadow-sm transition-colors`}>
-                        <Plus className="w-5 h-5" />
-                      </button>
+          <div className="space-y-8">
+            {Object.entries(groupedFlavors).map(([category, categoryFlavors]) => (
+              <div key={category}>
+                <h2 className={`text-2xl font-bold text-gray-800 mb-4 pl-2 border-l-4 ${theme.border}`}>{category}</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                  {(categoryFlavors as any[]).map(flavor => (
+                    <div key={flavor.id} className={`bg-white p-4 md:p-5 rounded-3xl shadow-sm border ${theme.border} flex flex-col h-full`}>
+                      <div className="flex gap-4 mb-4">
+                        <div className="w-20 h-20 md:w-24 md:h-24 bg-gray-100 rounded-2xl flex-shrink-0 overflow-hidden flex items-center justify-center">
+                          {flavor.imageUrl ? (
+                            <img src={flavor.imageUrl} alt={flavor.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <SacoleIcon className="w-8 h-8 text-gray-300" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg md:text-xl font-bold text-gray-800 leading-tight mb-1">{flavor.name}</h3>
+                          <span className={`font-bold ${theme.text} ${theme.light} px-3 py-1 rounded-full inline-block text-sm`}>
+                            R$ {flavor.price.toFixed(2).replace('.', ',')}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {flavor.description && <p className="text-gray-500 text-sm mb-6 flex-1">{flavor.description}</p>}
+                      
+                      <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+                        {cart[flavor.id] ? (
+                          <div className={`${theme.light} rounded-2xl p-1 w-full flex items-center justify-between`}>
+                            <button onClick={() => removeFromCart(flavor.id)} className={`w-10 h-10 flex items-center justify-center bg-white ${theme.text} rounded-xl shadow-sm transition-colors`}>
+                              <Minus className="w-5 h-5" />
+                            </button>
+                            <span className="font-bold text-lg text-gray-800">{cart[flavor.id]}</span>
+                            <button onClick={() => addToCart(flavor.id)} className={`w-10 h-10 flex items-center justify-center ${theme.primary} text-white rounded-xl shadow-sm transition-colors`}>
+                              <Plus className="w-5 h-5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => addToCart(flavor.id)} className={`w-full ${theme.light} ${theme.text} font-bold py-3 px-4 rounded-2xl transition-colors flex items-center justify-center gap-2`}>
+                            <Plus className="w-5 h-5" />
+                            Adicionar
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <button onClick={() => addToCart(flavor.id)} className={`w-full ${theme.light} ${theme.text} font-bold py-3 px-4 rounded-2xl transition-colors flex items-center justify-center gap-2`}>
-                      <Plus className="w-5 h-5" />
-                      Adicionar
-                    </button>
-                  )}
+                  ))}
                 </div>
               </div>
             ))}

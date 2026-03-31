@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { logOut, auth, db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, onSnapshot, doc, getDoc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, setDoc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { ShoppingBag, Settings, LogOut, Plus, Edit2, Trash2, Share2, Copy, CheckCircle2, ListTodo, Clock, Image as ImageIcon, BarChart3, Tag, Truck, MapPin } from 'lucide-react';
 import { SacoleIcon } from '../components/SacoleIcon';
 import { compressImage, THEMES } from '../utils/helpers';
@@ -30,7 +30,7 @@ export default function AdminDashboard() {
   const navItems = [
     { path: '/admin', icon: <BarChart3 className="w-6 h-6" />, label: 'Dashboard' },
     { path: '/admin/pedidos', icon: <ShoppingBag className="w-6 h-6" />, label: 'Pedidos' },
-    { path: '/admin/sabores', icon: <SacoleIcon className="w-6 h-6" />, label: 'Sabores' },
+    { path: '/admin/sabores', icon: <SacoleIcon className="w-6 h-6" />, label: 'Produtos' },
     { path: '/admin/fabricacao', icon: <Clock className="w-6 h-6" />, label: 'Fabricação' },
     { path: '/admin/compras', icon: <ListTodo className="w-6 h-6" />, label: 'Compras' },
     { path: '/admin/promocoes', icon: <Tag className="w-6 h-6" />, label: 'Promoções' },
@@ -166,7 +166,7 @@ function DashboardStats({ store }: { store: any }) {
       </div>
 
       <div className={`bg-white p-6 rounded-3xl shadow-sm border ${theme.border}`}>
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Sabores Mais Vendidos</h3>
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Produtos Mais Vendidos</h3>
         {bestSellers.length > 0 ? (
           <div className="space-y-4">
             {bestSellers.map((item, index) => (
@@ -292,14 +292,29 @@ function Orders({ store }: { store: any }) {
                     Marcar Pago
                   </button>
                 )}
+                {order.status === 'paid' && (
+                  <button onClick={() => updateStatus(order.id, 'pending')} className="flex-1 md:flex-none bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl font-medium transition-colors text-sm md:text-base text-center">
+                    Desmarcar Pago
+                  </button>
+                )}
                 {(order.status === 'pending' || order.status === 'paid') && (
                   <button onClick={() => updateStatus(order.id, 'completed')} className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-medium transition-colors text-sm md:text-base text-center">
                     Entregar
                   </button>
                 )}
+                {order.status === 'completed' && (
+                  <button onClick={() => updateStatus(order.id, 'paid')} className="flex-1 md:flex-none bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl font-medium transition-colors text-sm md:text-base text-center">
+                    Desmarcar Entrega
+                  </button>
+                )}
                 {order.status !== 'cancelled' && order.status !== 'completed' && (
                   <button onClick={() => updateStatus(order.id, 'cancelled')} className="flex-1 md:flex-none bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-xl font-medium transition-colors text-sm md:text-base text-center">
                     Cancelar
+                  </button>
+                )}
+                {order.status === 'cancelled' && (
+                  <button onClick={() => updateStatus(order.id, 'pending')} className="flex-1 md:flex-none bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors text-sm md:text-base text-center">
+                    Restaurar
                   </button>
                 )}
               </div>
@@ -320,6 +335,7 @@ function Flavors({ store }: { store: any }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
+  const [category, setCategory] = useState('Sacolé');
   const [available, setAvailable] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
 
@@ -359,6 +375,7 @@ function Flavors({ store }: { store: any }) {
         name,
         description,
         price: parseFloat(price.replace(',', '.')),
+        category,
         available,
         imageUrl,
         createdAt: editingFlavor ? editingFlavor.createdAt : new Date().toISOString()
@@ -379,7 +396,7 @@ function Flavors({ store }: { store: any }) {
 
   const handleDelete = async (id: string) => {
     if (!store?.id) return;
-    if (window.confirm('Tem certeza que deseja excluir este sabor?')) {
+    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
       try {
         await deleteDoc(doc(db, 'stores', store.id, 'flavors', id));
       } catch (error) {
@@ -392,6 +409,7 @@ function Flavors({ store }: { store: any }) {
     setName('');
     setDescription('');
     setPrice('');
+    setCategory('Sacolé');
     setAvailable(true);
     setImageUrl('');
     setIsAdding(false);
@@ -402,6 +420,7 @@ function Flavors({ store }: { store: any }) {
     setName(flavor.name);
     setDescription(flavor.description || '');
     setPrice(flavor.price.toString());
+    setCategory(flavor.category || 'Sacolé');
     setAvailable(flavor.available);
     setImageUrl(flavor.imageUrl || '');
     setEditingFlavor(flavor);
@@ -411,18 +430,18 @@ function Flavors({ store }: { store: any }) {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6 md:mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Sabores</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Produtos</h1>
         {!isAdding && (
           <button onClick={() => setIsAdding(true)} className={`${theme.primary} ${theme.hover} text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 text-sm md:text-base`}>
             <Plus className="w-5 h-5" />
-            Novo Sabor
+            Novo Produto
           </button>
         )}
       </div>
 
       {isAdding && (
         <div className={`bg-white p-4 md:p-6 rounded-3xl shadow-sm mb-8 border ${theme.border}`}>
-          <h2 className="text-xl font-bold text-gray-800 mb-4">{editingFlavor ? 'Editar Sabor' : 'Adicionar Novo Sabor'}</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">{editingFlavor ? 'Editar Produto' : 'Adicionar Novo Produto'}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             
             <div className="flex flex-col md:flex-row gap-4">
@@ -436,10 +455,20 @@ function Flavors({ store }: { store: any }) {
               </div>
               <div className="flex-1 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Sabor</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto</label>
                   <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: Morango com Nutella" />
                 </div>
-                <div className="flex gap-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                    <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none">
+                      <option value="Sacolé">Sacolé</option>
+                      <option value="Bolo de Pote">Bolo de Pote</option>
+                      <option value="Pudim">Pudim</option>
+                      <option value="Mousse">Mousse</option>
+                      <option value="Outros">Outros</option>
+                    </select>
+                  </div>
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Preço (R$)</label>
                     <input required type="number" step="0.01" min="0" value={price} onChange={e => setPrice(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 5.00" />
@@ -603,9 +632,9 @@ function Manufacturing({ store }: { store: any }) {
           <h2 className="text-xl font-bold text-gray-800 mb-4">Registrar Produção</h2>
           <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sabor</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Produto</label>
               <select required value={flavorId} onChange={e => setFlavorId(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none bg-white">
-                <option value="">Selecione um sabor...</option>
+                <option value="">Selecione um produto...</option>
                 {flavors.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
