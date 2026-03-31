@@ -680,9 +680,12 @@ function Manufacturing({ store }: { store: any }) {
     try {
       const data: any = { status };
       if (status === 'freezing') {
-        // Estimate 12 hours for freezing
+        const batch = batches.find(b => b.id === batchId);
+        const flavor = flavors.find(f => f.id === batch?.flavorId);
+        const productionHours = flavor?.productionTime || 12;
+        
         const readyAt = new Date();
-        readyAt.setHours(readyAt.getHours() + 12);
+        readyAt.setHours(readyAt.getHours() + productionHours);
         data.readyAt = readyAt.toISOString();
       }
       await updateDoc(doc(db, 'stores', store.id, 'batches', batchId), data);
