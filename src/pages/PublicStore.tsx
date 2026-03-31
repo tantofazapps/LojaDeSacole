@@ -133,10 +133,12 @@ export default function PublicStore() {
       };
       
       const docRef = await addDoc(collection(db, 'stores', storeId, 'orders'), orderData);
+      console.log("Order saved successfully:", docRef.id);
       setOrderComplete({ id: docRef.id, ...orderData });
       setCart({});
       setIsCheckingOut(false);
     } catch (error) {
+      console.error("Error saving order:", error);
       handleFirestoreError(error, OperationType.CREATE, `stores/${storeId}/orders`);
     }
   };

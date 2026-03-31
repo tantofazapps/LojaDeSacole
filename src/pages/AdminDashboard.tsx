@@ -481,6 +481,14 @@ function Flavors({ store }: { store: any }) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Preço (R$)</label>
                     <input required type="number" step="0.01" min="0" value={price} onChange={e => setPrice(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 5.00" />
                   </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estoque</label>
+                    <input required type="number" min="0" value={stock} onChange={e => setStock(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 10" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tempo (min)</label>
+                    <input required type="number" min="0" value={productionTime} onChange={e => setProductionTime(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 30" />
+                  </div>
                   <div className="flex items-center pt-6">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={available} onChange={e => setAvailable(e.target.checked)} className={`w-5 h-5 ${theme.text} rounded focus:ring-opacity-50`} />
@@ -723,6 +731,8 @@ function ShoppingList({ store }: { store: any }) {
   const theme = THEMES[(store?.theme as keyof typeof THEMES) || 'orange'];
   const [items, setItems] = useState<any[]>([]);
   const [newItem, setNewItem] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [unit, setUnit] = useState('un');
 
   useEffect(() => {
     if (!store?.id) return;
@@ -744,15 +754,19 @@ function ShoppingList({ store }: { store: any }) {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!store?.id || !newItem.trim()) return;
+    if (!store?.id || !newItem.trim() || !quantity) return;
     
     try {
       await addDoc(collection(db, 'stores', store.id, 'shoppingList'), {
         name: newItem.trim(),
+        quantity: parseInt(quantity),
+        unit: unit.trim(),
         completed: false,
         createdAt: new Date().toISOString()
       });
       setNewItem('');
+      setQuantity('');
+      setUnit('un');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `stores/${store.id}/shoppingList`);
     }
@@ -778,13 +792,27 @@ function ShoppingList({ store }: { store: any }) {
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 md:mb-8">Lista de Compras</h1>
       
-      <form onSubmit={handleAdd} className="flex gap-2 mb-6">
+      <form onSubmit={handleAdd} className="flex flex-wrap gap-2 mb-6">
         <input 
           type="text" 
           value={newItem} 
           onChange={e => setNewItem(e.target.value)} 
-          placeholder="Ex: Leite condensado, saquinhos..." 
-          className="flex-1 p-3 md:p-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-opacity-50 outline-none shadow-sm"
+          placeholder="Item" 
+          className="flex-1 min-w-[150px] p-3 md:p-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-opacity-50 outline-none shadow-sm"
+        />
+        <input 
+          type="number" 
+          value={quantity} 
+          onChange={e => setQuantity(e.target.value)} 
+          placeholder="Qtd" 
+          className="w-20 p-3 md:p-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-opacity-50 outline-none shadow-sm"
+        />
+        <input 
+          type="text" 
+          value={unit} 
+          onChange={e => setUnit(e.target.value)} 
+          placeholder="Un" 
+          className="w-20 p-3 md:p-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-opacity-50 outline-none shadow-sm"
         />
         <button type="submit" className={`${theme.primary} ${theme.hover} text-white px-4 md:px-6 py-3 md:py-4 rounded-2xl font-medium transition-colors shadow-sm`}>
           <Plus className="w-6 h-6" />
@@ -804,7 +832,7 @@ function ShoppingList({ store }: { store: any }) {
                   {item.completed && <CheckCircle2 className="w-4 h-4" />}
                 </button>
                 <span className={`flex-1 text-lg ${item.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                  {item.name}
+                  {item.name} {item.quantity && item.unit && <span className="text-sm font-medium text-gray-500">({item.quantity} {item.unit})</span>}
                 </span>
                 <button onClick={() => deleteItem(item.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg transition-colors">
                   <Trash2 className="w-5 h-5" />

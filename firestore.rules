@@ -99,7 +99,7 @@ service cloud.firestore {
              isValidDateString(data.createdAt);
     }
 
-    function isValidShoppingItem() {
+    function isValidShoppingItemForCreate() {
       let data = request.resource.data;
       return hasOnlyAllowedFields(['name', 'quantity', 'unit', 'completed', 'createdAt']) &&
              hasRequiredFields(['name', 'quantity', 'unit', 'completed', 'createdAt']) &&
@@ -108,6 +108,16 @@ service cloud.firestore {
              data.unit is string && data.unit.size() > 0 && data.unit.size() < 20 &&
              data.completed is bool &&
              isValidDateString(data.createdAt);
+    }
+
+    function isValidShoppingItemForUpdate() {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['name', 'quantity', 'unit', 'completed', 'createdAt']) &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 100)) &&
+             (!('quantity' in data) || (data.quantity is number && data.quantity > 0)) &&
+             (!('unit' in data) || (data.unit is string && data.unit.size() > 0 && data.unit.size() < 20)) &&
+             (!('completed' in data) || (data.completed is bool)) &&
+             (!('createdAt' in data) || isValidDateString(data.createdAt));
     }
 
     function isValidBatch() {
@@ -176,8 +186,8 @@ service cloud.firestore {
 
       match /shoppingList/{itemId} {
         allow read: if isStoreOwner(storeId);
-        allow create: if isStoreOwner(storeId) && isValidShoppingItem();
-        allow update: if isStoreOwner(storeId) && isValidShoppingItem() && request.resource.data.createdAt == resource.data.createdAt;
+        allow create: if isStoreOwner(storeId) && isValidShoppingItemForCreate();
+        allow update: if isStoreOwner(storeId) && isValidShoppingItemForUpdate() && request.resource.data.createdAt == resource.data.createdAt;
         allow delete: if isStoreOwner(storeId);
       }
 
