@@ -489,6 +489,7 @@ function Flavors({ store }: { store: any }) {
   const [maxPreorderQuantity, setMaxPreorderQuantity] = useState('');
   const [productionTime, setProductionTime] = useState('');
   const [productionTimeUnit, setProductionTimeUnit] = useState('min');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     if (!store?.id) return;
@@ -544,11 +545,14 @@ function Flavors({ store }: { store: any }) {
 
       if (editingFlavor) {
         await updateDoc(doc(db, 'stores', store.id, 'flavors', editingFlavor.id), flavorData);
+        setSuccessMessage('Produto atualizado com sucesso!');
       } else {
         const newRef = doc(collection(db, 'stores', store.id, 'flavors'));
         await setDoc(newRef, flavorData);
+        setSuccessMessage('Produto adicionado com sucesso!');
       }
       
+      setTimeout(() => setSuccessMessage(''), 3000);
       resetForm();
     } catch (error) {
       handleFirestoreError(error, editingFlavor ? OperationType.UPDATE : OperationType.CREATE, `stores/${store.id}/flavors`);
@@ -609,6 +613,13 @@ function Flavors({ store }: { store: any }) {
           </button>
         )}
       </div>
+
+      {successMessage && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5" />
+          <span className="font-medium">{successMessage}</span>
+        </div>
+      )}
 
       {isAdding && (
         <div className={`bg-white p-4 md:p-6 rounded-3xl shadow-sm mb-8 border ${theme.border}`}>

@@ -83,7 +83,7 @@ service cloud.firestore {
              data.available is bool &&
              data.stock is number && data.stock >= 0 &&
              (!('allowPreorder' in data) || data.allowPreorder is bool) &&
-             (!('maxPreorderQuantity' in data) || data.maxPreorderQuantity is number && data.maxPreorderQuantity > 0) &&
+             (!('maxPreorderQuantity' in data) || data.maxPreorderQuantity == null || (data.maxPreorderQuantity is number && data.maxPreorderQuantity > 0)) &&
              data.productionTime is number && data.productionTime >= 0 &&
              (!('productionTimeUnit' in data) || (data.productionTimeUnit in ['min', 'h'])) &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500000)) &&
