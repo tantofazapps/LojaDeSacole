@@ -74,7 +74,7 @@ service cloud.firestore {
     
     function isValidFlavor() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['name', 'description', 'price', 'category', 'available', 'imageUrl', 'createdAt', 'stock', 'allowPreorder', 'productionTime', 'productionTimeUnit']) &&
+      return hasOnlyAllowedFields(['name', 'description', 'price', 'category', 'available', 'imageUrl', 'createdAt', 'stock', 'allowPreorder', 'maxPreorderQuantity', 'productionTime', 'productionTimeUnit']) &&
              hasRequiredFields(['name', 'price', 'available', 'createdAt', 'stock', 'productionTime']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
@@ -83,6 +83,7 @@ service cloud.firestore {
              data.available is bool &&
              data.stock is number && data.stock >= 0 &&
              (!('allowPreorder' in data) || data.allowPreorder is bool) &&
+             (!('maxPreorderQuantity' in data) || data.maxPreorderQuantity is number && data.maxPreorderQuantity > 0) &&
              data.productionTime is number && data.productionTime >= 0 &&
              (!('productionTimeUnit' in data) || (data.productionTimeUnit in ['min', 'h'])) &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500000)) &&

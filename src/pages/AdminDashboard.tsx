@@ -486,6 +486,7 @@ function Flavors({ store }: { store: any }) {
   const [imageUrl, setImageUrl] = useState('');
   const [stock, setStock] = useState('');
   const [allowPreorder, setAllowPreorder] = useState(false);
+  const [maxPreorderQuantity, setMaxPreorderQuantity] = useState('');
   const [productionTime, setProductionTime] = useState('');
   const [productionTimeUnit, setProductionTimeUnit] = useState('min');
 
@@ -521,7 +522,7 @@ function Flavors({ store }: { store: any }) {
     if (!store?.id) return;
     
     try {
-      const flavorData = {
+      const flavorData: any = {
         name,
         description,
         price: parseFloat(price.replace(',', '.')),
@@ -534,6 +535,12 @@ function Flavors({ store }: { store: any }) {
         productionTimeUnit,
         createdAt: editingFlavor ? editingFlavor.createdAt : new Date().toISOString()
       };
+
+      if (allowPreorder && maxPreorderQuantity) {
+        flavorData.maxPreorderQuantity = parseInt(maxPreorderQuantity);
+      } else if (!allowPreorder) {
+        flavorData.maxPreorderQuantity = null; // Clear it if not allowed
+      }
 
       if (editingFlavor) {
         await updateDoc(doc(db, 'stores', store.id, 'flavors', editingFlavor.id), flavorData);
@@ -568,6 +575,7 @@ function Flavors({ store }: { store: any }) {
     setImageUrl('');
     setStock('');
     setAllowPreorder(false);
+    setMaxPreorderQuantity('');
     setProductionTime('');
     setProductionTimeUnit('min');
     setIsAdding(false);
@@ -583,6 +591,7 @@ function Flavors({ store }: { store: any }) {
     setImageUrl(flavor.imageUrl || '');
     setStock(flavor.stock?.toString() || '0');
     setAllowPreorder(flavor.allowPreorder || false);
+    setMaxPreorderQuantity(flavor.maxPreorderQuantity?.toString() || '');
     setProductionTime(flavor.productionTime?.toString() || '0');
     setProductionTimeUnit(flavor.productionTimeUnit || 'min');
     setEditingFlavor(flavor);
@@ -656,6 +665,12 @@ function Flavors({ store }: { store: any }) {
                       <span className="text-gray-700 font-medium whitespace-nowrap">Permitir Encomenda</span>
                     </label>
                   </div>
+                  {allowPreorder && (
+                    <div className="flex-1 min-w-[150px]">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Máx. Encomendas</label>
+                      <input required type="number" min="1" value={maxPreorderQuantity} onChange={e => setMaxPreorderQuantity(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 50" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-[150px]">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tempo</label>
                     <div className="flex gap-2">

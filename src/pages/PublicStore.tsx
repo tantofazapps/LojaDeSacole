@@ -94,6 +94,14 @@ export default function PublicStore() {
         }
         return;
       }
+    } else if (flavor.allowPreorder && flavor.maxPreorderQuantity !== undefined && flavor.maxPreorderQuantity !== null) {
+      // If pre-order is allowed, check if there's a maximum quantity
+      // The total allowed is stock + maxPreorderQuantity
+      const totalAllowed = (flavor.stock || 0) + flavor.maxPreorderQuantity;
+      if (currentQty >= totalAllowed) {
+        alert(`Desculpe, o limite máximo de encomendas para ${flavor.name} é de ${flavor.maxPreorderQuantity} unidade(s).`);
+        return;
+      }
     }
 
     setCart(prev => ({ ...prev, [flavorId]: currentQty + 1 }));
@@ -157,6 +165,12 @@ export default function PublicStore() {
           if (!flavorData.allowPreorder && flavorData.stock !== undefined && flavorData.stock !== null) {
             if (item.quantity > flavorData.stock) {
               alert(`Desculpe, o estoque de ${item.name} acabou de mudar. Temos apenas ${flavorData.stock} unidade(s) disponíveis.`);
+              return;
+            }
+          } else if (flavorData.allowPreorder && flavorData.maxPreorderQuantity !== undefined && flavorData.maxPreorderQuantity !== null) {
+            const totalAllowed = (flavorData.stock || 0) + flavorData.maxPreorderQuantity;
+            if (item.quantity > totalAllowed) {
+              alert(`Desculpe, o limite máximo de encomendas para ${item.name} é de ${flavorData.maxPreorderQuantity} unidade(s).`);
               return;
             }
           }
@@ -474,7 +488,7 @@ export default function PublicStore() {
       </header>
 
       {/* Flavors Grid */}
-      <main className="max-w-4xl mx-auto p-4 md:p-6 pt-[300px] md:pt-[200px]">
+      <main className="max-w-4xl mx-auto p-4 md:p-6 pt-[380px] md:pt-[250px]">
         {flavors.length === 0 ? (
           <div className="text-center py-12">
             <SacoleIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -528,7 +542,7 @@ export default function PublicStore() {
                             <span className="font-bold text-lg text-gray-800">{cart[flavor.id]}</span>
                             <button 
                               onClick={() => addToCart(flavor.id)} 
-                              disabled={!flavor.allowPreorder && flavor.stock !== undefined && flavor.stock !== null && cart[flavor.id] >= flavor.stock}
+                              disabled={(!flavor.allowPreorder && flavor.stock !== undefined && flavor.stock !== null && cart[flavor.id] >= flavor.stock) || (flavor.allowPreorder && flavor.maxPreorderQuantity !== undefined && flavor.maxPreorderQuantity !== null && cart[flavor.id] >= (flavor.stock || 0) + flavor.maxPreorderQuantity)}
                               className={`w-10 h-10 flex items-center justify-center ${theme.primary} text-white rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                               <Plus className="w-5 h-5" />

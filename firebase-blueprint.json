@@ -46,6 +46,7 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "stock": { "type": "number" },
         "allowPreorder": { "type": "boolean" },
+        "maxPreorderQuantity": { "type": "number" },
         "productionTime": { "type": "number" },
         "productionTimeUnit": { "type": "string", "enum": ["min", "h"] }
       },
