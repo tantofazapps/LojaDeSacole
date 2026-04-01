@@ -74,7 +74,7 @@ service cloud.firestore {
     
     function isValidFlavor() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['name', 'description', 'price', 'category', 'available', 'imageUrl', 'createdAt', 'stock', 'allowPreorder', 'maxPreorderQuantity', 'productionTime', 'productionTimeUnit']) &&
+      return hasOnlyAllowedFields(['name', 'description', 'price', 'category', 'available', 'imageUrl', 'createdAt', 'stock', 'allowPreorder', 'maxPreorderQuantity', 'productionTime', 'productionTimeUnit', 'currentPreorderCount']) &&
              hasRequiredFields(['name', 'price', 'available', 'createdAt', 'stock', 'productionTime']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
@@ -87,6 +87,7 @@ service cloud.firestore {
              data.productionTime is number && data.productionTime >= 0 &&
              (!('productionTimeUnit' in data) || (data.productionTimeUnit in ['min', 'h'])) &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500000)) &&
+             (!('currentPreorderCount' in data) || (data.currentPreorderCount is number && data.currentPreorderCount >= 0)) &&
              isValidDateString(data.createdAt);
     }
     
@@ -192,9 +193,9 @@ service cloud.firestore {
         allow read: if true;
         allow create: if isStoreOwner(storeId) && isValidFlavor();
         allow update: if (isStoreOwner(storeId) && isValidFlavor() && request.resource.data.createdAt == resource.data.createdAt) ||
-                         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) &&
+                         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'currentPreorderCount', 'allowPreorder']) &&
                           request.resource.data.stock >= 0 &&
-                          request.resource.data.stock < resource.data.stock);
+                          request.resource.data.currentPreorderCount >= 0);
         allow delete: if isStoreOwner(storeId);
       }
       
