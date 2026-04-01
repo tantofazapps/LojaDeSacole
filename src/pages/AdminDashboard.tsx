@@ -156,6 +156,7 @@ function DashboardStats({ store }: { store: any }) {
   const theme = THEMES[(store?.theme as keyof typeof THEMES) || 'orange'];
   const [orders, setOrders] = useState<any[]>([]);
   const [flavors, setFlavors] = useState<any[]>([]);
+  const [demandAlerts, setDemandAlerts] = useState<any[]>([]);
   const [showValues, setShowValues] = useState(() => {
     const saved = localStorage.getItem('adminShowValues');
     return saved !== null ? JSON.parse(saved) : true;
@@ -178,8 +179,21 @@ function DashboardStats({ store }: { store: any }) {
       setFlavors(snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) })));
     });
     
-    return () => { unsubOrders(); unsubFlavors(); };
+    const alertsRef = collection(db, 'stores', store.id, 'demand_alerts');
+    const unsubAlerts = onSnapshot(alertsRef, (snapshot) => {
+      setDemandAlerts(snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) })));
+    });
+    
+    return () => { unsubOrders(); unsubFlavors(); unsubAlerts(); };
   }, [store?.id]);
+
+  const dismissAlert = async (alertId: string) => {
+    try {
+      await deleteDoc(doc(db, 'stores', store.id, 'demand_alerts', alertId));
+    } catch (error) {
+      console.error("Error dismissing alert:", error);
+    }
+  };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -249,25 +263,66 @@ function DashboardStats({ store }: { store: any }) {
         </div>
       </div>
 
-      <div className={`bg-white p-6 rounded-3xl shadow-sm border ${theme.border}`}>
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Produtos Mais Vendidos</h3>
-        {bestSellers.length > 0 ? (
-          <div className="space-y-4">
-            {bestSellers.map((item, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className={`w-8 h-8 rounded-full ${theme.light} ${theme.text} flex items-center justify-center font-bold`}>
-                    {index + 1}
-                  </span>
-                  <span className="font-medium text-gray-700">{item.name}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`bg-white p-6 rounded-3xl shadow-sm border ${theme.border}`}>
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Produtos Mais Vendidos</h3>
+          {bestSellers.length > 0 ? (
+            <div className="space-y-4">
+              {bestSellers.map((item, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-8 h-8 rounded-full ${theme.light} ${theme.text} flex items-center justify-center font-bold`}>
+                      {index + 1}
+                    </span>
+                    <span className="font-medium text-gray-700">{item.name}</span>
+                  </div>
+                  <span className="font-bold text-gray-800">{showValues ? `${item.count} un` : '***'}</span>
                 </div>
-                <span className="font-bold text-gray-800">{showValues ? `${item.count} un` : '***'}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 text-center py-4">Nenhum dado de vendas ainda.</p>
-        )}
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-4">Nenhum dado de vendas ainda.</p>
+          )}
+        </div>
+
+        <div className={`bg-white p-6 rounded-3xl shadow-sm border ${theme.border}`}>
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            Alertas de Estoque
+            {demandAlerts.length > 0 && (
+              <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                {demandAlerts.length}
+              </span>
+            )}
+          </h3>
+          {demandAlerts.length > 0 ? (
+            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+              {demandAlerts.map((alert) => (
+                <div key={alert.id} className="bg-red-50 p-4 rounded-xl border border-red-100 flex justify-between items-start">
+                  <div>
+                    <p className="text-sm text-red-800 font-medium">
+                      Tentativa de compra de <span className="font-bold">{alert.flavorName}</span>
+                    </p>
+                    <p className="text-xs text-red-600 mt-1">
+                      Cliente tentou adicionar {alert.requestedQuantity} un. (Estoque: {alert.availableStock})
+                    </p>
+                    <p className="text-[10px] text-red-400 mt-2">
+                      {new Date(alert.createdAt).toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => dismissAlert(alert.id)}
+                    className="text-red-400 hover:text-red-600 p-1"
+                    title="Marcar como visto"
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-4">Nenhum alerta de estoque.</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -430,6 +485,7 @@ function Flavors({ store }: { store: any }) {
   const [available, setAvailable] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
   const [stock, setStock] = useState('');
+  const [allowPreorder, setAllowPreorder] = useState(false);
   const [productionTime, setProductionTime] = useState('');
   const [productionTimeUnit, setProductionTimeUnit] = useState('min');
 
@@ -473,6 +529,7 @@ function Flavors({ store }: { store: any }) {
         available,
         imageUrl,
         stock: parseInt(stock) || 0,
+        allowPreorder,
         productionTime: parseInt(productionTime) || 0,
         productionTimeUnit,
         createdAt: editingFlavor ? editingFlavor.createdAt : new Date().toISOString()
@@ -510,6 +567,7 @@ function Flavors({ store }: { store: any }) {
     setAvailable(true);
     setImageUrl('');
     setStock('');
+    setAllowPreorder(false);
     setProductionTime('');
     setProductionTimeUnit('min');
     setIsAdding(false);
@@ -524,6 +582,7 @@ function Flavors({ store }: { store: any }) {
     setAvailable(flavor.available);
     setImageUrl(flavor.imageUrl || '');
     setStock(flavor.stock?.toString() || '0');
+    setAllowPreorder(flavor.allowPreorder || false);
     setProductionTime(flavor.productionTime?.toString() || '0');
     setProductionTimeUnit(flavor.productionTimeUnit || 'min');
     setEditingFlavor(flavor);
@@ -591,6 +650,12 @@ function Flavors({ store }: { store: any }) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Estoque</label>
                     <input required type="number" min="0" value={stock} onChange={e => setStock(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 10" />
                   </div>
+                  <div className="flex items-center pt-6 min-w-[150px]">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={allowPreorder} onChange={e => setAllowPreorder(e.target.checked)} className={`w-5 h-5 ${theme.text} rounded focus:ring-opacity-50`} />
+                      <span className="text-gray-700 font-medium whitespace-nowrap">Permitir Encomenda</span>
+                    </label>
+                  </div>
                   <div className="flex-1 min-w-[150px]">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tempo</label>
                     <div className="flex gap-2">
@@ -648,9 +713,15 @@ function Flavors({ store }: { store: any }) {
               {flavor.description && <p className="text-gray-500 text-xs md:text-sm line-clamp-2 mb-2">{flavor.description}</p>}
               
               <div className="mt-auto flex justify-between items-center pt-2">
-                <span className={`text-xs font-medium px-2 py-1 rounded-md ${flavor.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                  {flavor.available ? 'Disponível' : 'Esgotado'}
-                </span>
+                <div className="flex flex-col gap-1">
+                  <span className={`text-xs font-medium px-2 py-1 rounded-md w-fit ${flavor.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {flavor.available ? 'Disponível' : 'Indisponível'}
+                  </span>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-md w-fit ${flavor.stock > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                    {flavor.stock > 0 ? `Estoque: ${flavor.stock}` : 'Esgotado'}
+                    {flavor.allowPreorder && ' (Aceita Encomenda)'}
+                  </span>
+                </div>
                 <div className="flex gap-1">
                   <button onClick={() => editFlavor(flavor)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
                     <Edit2 className="w-4 h-4 md:w-5 md:h-5" />

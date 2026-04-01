@@ -45,6 +45,7 @@
         "imageUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "stock": { "type": "number" },
+        "allowPreorder": { "type": "boolean" },
         "productionTime": { "type": "number" },
         "productionTimeUnit": { "type": "string", "enum": ["min", "h"] }
       },
@@ -118,6 +119,19 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "discountType", "discountValue", "active", "createdAt"]
+    },
+    "DemandAlert": {
+      "title": "Demand Alert",
+      "description": "Alert for out of stock items",
+      "type": "object",
+      "properties": {
+        "flavorId": { "type": "string" },
+        "flavorName": { "type": "string" },
+        "requestedQuantity": { "type": "number" },
+        "availableStock": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["flavorId", "flavorName", "requestedQuantity", "availableStock", "createdAt"]
     }
   },
   "firestore": {
@@ -148,6 +162,10 @@
     "/stores/{storeId}/promotions/{promotionId}": {
       "schema": { "$ref": "#/entities/Promotion" },
       "description": "Store promotions"
+    },
+    "/stores/{storeId}/demand_alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/DemandAlert" },
+      "description": "Demand alerts for out of stock items"
     }
   }
 }

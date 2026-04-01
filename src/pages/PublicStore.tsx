@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, doc, getDoc, getDocs, addDoc, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, query, where } from 'firebase/firestore';
 import { ShoppingCart, Plus, Minus, CheckCircle2, Copy, ArrowLeft, Image as ImageIcon, Truck, MapPin, Tag } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { SacoleIcon } from '../components/SacoleIcon';
@@ -70,8 +70,33 @@ export default function PublicStore() {
     fetchStore();
   }, [storeId]);
 
-  const addToCart = (flavorId: string) => {
-    setCart(prev => ({ ...prev, [flavorId]: (prev[flavorId] || 0) + 1 }));
+  const addToCart = async (flavorId: string) => {
+    const flavor = flavors.find(f => f.id === flavorId);
+    if (!flavor) return;
+
+    const currentQty = cart[flavorId] || 0;
+    
+    if (!flavor.allowPreorder && flavor.stock !== undefined && flavor.stock !== null) {
+      if (currentQty >= flavor.stock) {
+        alert(`Desculpe, temos apenas ${flavor.stock} unidade(s) de ${flavor.name} em estoque no momento.`);
+        
+        // Log demand alert for admin
+        try {
+          await addDoc(collection(db, 'stores', storeId!, 'demand_alerts'), {
+            flavorId: flavor.id,
+            flavorName: flavor.name,
+            requestedQuantity: currentQty + 1,
+            availableStock: flavor.stock,
+            createdAt: new Date().toISOString()
+          });
+        } catch (e) {
+          console.error("Error logging demand:", e);
+        }
+        return;
+      }
+    }
+
+    setCart(prev => ({ ...prev, [flavorId]: currentQty + 1 }));
   };
 
   const removeFromCart = (flavorId: string) => {
@@ -123,6 +148,21 @@ export default function PublicStore() {
     if (!storeId || cartItems.length === 0) return;
     
     try {
+      // Check stock again before finalizing
+      for (const item of cartItems) {
+        const flavorRef = doc(db, 'stores', storeId, 'flavors', item.id);
+        const flavorSnap = await getDoc(flavorRef);
+        if (flavorSnap.exists()) {
+          const flavorData = flavorSnap.data();
+          if (!flavorData.allowPreorder && flavorData.stock !== undefined && flavorData.stock !== null) {
+            if (item.quantity > flavorData.stock) {
+              alert(`Desculpe, o estoque de ${item.name} acabou de mudar. Temos apenas ${flavorData.stock} unidade(s) disponíveis.`);
+              return;
+            }
+          }
+        }
+      }
+
       const orderData = {
         customerName,
         customerPhone,
@@ -143,6 +183,21 @@ export default function PublicStore() {
       
       const docRef = await addDoc(collection(db, 'stores', storeId, 'orders'), orderData);
       console.log("Order saved successfully:", docRef.id);
+
+      // Decrement stock
+      for (const item of cartItems) {
+        const flavorRef = doc(db, 'stores', storeId, 'flavors', item.id);
+        const flavorSnap = await getDoc(flavorRef);
+        if (flavorSnap.exists()) {
+          const flavorData = flavorSnap.data();
+          if (flavorData.stock !== undefined && flavorData.stock !== null) {
+            await updateDoc(flavorRef, {
+              stock: Math.max(0, flavorData.stock - item.quantity)
+            });
+          }
+        }
+      }
+
       setOrderComplete({ id: docRef.id, ...orderData });
       setCart({});
       setIsCheckingOut(false);
@@ -367,8 +422,8 @@ export default function PublicStore() {
       {/* Header */}
       <header className={`bg-gradient-to-r ${theme.gradient} text-white shadow-md fixed top-0 left-0 right-0 z-20 overflow-hidden transition-all duration-300`}>
         {/* Decorative background pattern */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+        <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden">
+          <svg className="w-full h-[500px]" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="sacole-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M15 10l1.5-2h3L21 10 M14 10h8v14a4 4 0 0 1-8 0V10z M14 14h8 M14 18h8 M14 22h8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -433,20 +488,32 @@ export default function PublicStore() {
                 <h2 className={`text-2xl font-bold text-gray-800 mb-4 pl-2 border-l-4 ${theme.border}`}>{category}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                   {(categoryFlavors as any[]).map(flavor => (
-                    <div key={flavor.id} className={`bg-white p-4 md:p-5 rounded-3xl shadow-sm border ${theme.border} flex flex-col h-full`}>
+                    <div key={flavor.id} className={`bg-white p-4 md:p-5 rounded-3xl shadow-sm border ${theme.border} flex flex-col h-full ${flavor.stock <= 0 && !flavor.allowPreorder ? 'opacity-75 grayscale-[0.5]' : ''}`}>
                       <div className="flex gap-4 mb-4">
-                        <div className="w-20 h-20 md:w-24 md:h-24 bg-gray-100 rounded-2xl flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        <div className="w-20 h-20 md:w-24 md:h-24 bg-gray-100 rounded-2xl flex-shrink-0 overflow-hidden flex items-center justify-center relative">
                           {flavor.imageUrl ? (
                             <img src={flavor.imageUrl} alt={flavor.name} className="w-full h-full object-cover" />
                           ) : (
                             <SacoleIcon className="w-8 h-8 text-gray-300" />
                           )}
+                          {flavor.stock <= 0 && !flavor.allowPreorder && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <span className="text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-red-500 rounded-md transform -rotate-12">Esgotado</span>
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1">
                           <h3 className="text-lg md:text-xl font-bold text-gray-800 leading-tight mb-1">{flavor.name}</h3>
-                          <span className={`font-bold ${theme.text} ${theme.light} px-3 py-1 rounded-full inline-block text-sm`}>
-                            R$ {flavor.price.toFixed(2).replace('.', ',')}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`font-bold ${theme.text} ${theme.light} px-3 py-1 rounded-full inline-block text-sm`}>
+                              R$ {flavor.price.toFixed(2).replace('.', ',')}
+                            </span>
+                            {flavor.stock <= 0 && flavor.allowPreorder && (
+                              <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-md">
+                                Sob Encomenda
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       
@@ -459,14 +526,28 @@ export default function PublicStore() {
                               <Minus className="w-5 h-5" />
                             </button>
                             <span className="font-bold text-lg text-gray-800">{cart[flavor.id]}</span>
-                            <button onClick={() => addToCart(flavor.id)} className={`w-10 h-10 flex items-center justify-center ${theme.primary} text-white rounded-xl shadow-sm transition-colors`}>
+                            <button 
+                              onClick={() => addToCart(flavor.id)} 
+                              disabled={!flavor.allowPreorder && flavor.stock !== undefined && flavor.stock !== null && cart[flavor.id] >= flavor.stock}
+                              className={`w-10 h-10 flex items-center justify-center ${theme.primary} text-white rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
                               <Plus className="w-5 h-5" />
                             </button>
                           </div>
                         ) : (
-                          <button onClick={() => addToCart(flavor.id)} className={`w-full ${theme.light} ${theme.text} font-bold py-3 px-4 rounded-2xl transition-colors flex items-center justify-center gap-2`}>
-                            <Plus className="w-5 h-5" />
-                            Adicionar
+                          <button 
+                            onClick={() => addToCart(flavor.id)} 
+                            disabled={flavor.stock <= 0 && !flavor.allowPreorder}
+                            className={`w-full ${flavor.stock <= 0 && !flavor.allowPreorder ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${theme.light} ${theme.text}`} font-bold py-3 px-4 rounded-2xl transition-colors flex items-center justify-center gap-2`}
+                          >
+                            {flavor.stock <= 0 && !flavor.allowPreorder ? (
+                              'Esgotado'
+                            ) : (
+                              <>
+                                <Plus className="w-5 h-5" />
+                                Adicionar
+                              </>
+                            )}
                           </button>
                         )}
                       </div>
