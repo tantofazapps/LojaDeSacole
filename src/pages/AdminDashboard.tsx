@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { logOut, auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, onSnapshot, doc, getDoc, setDoc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
-import { ShoppingBag, Settings, LogOut, Plus, Edit2, Trash2, Share2, Copy, CheckCircle2, ListTodo, Clock, Image as ImageIcon, BarChart3, Tag, Truck, MapPin, DollarSign, Eye, EyeOff } from 'lucide-react';
+import { ShoppingBag, Settings, LogOut, Plus, Edit2, Trash2, Share2, Copy, CheckCircle2, ListTodo, Clock, Image as ImageIcon, BarChart3, Tag, Truck, MapPin, DollarSign, Eye, EyeOff, Camera } from 'lucide-react';
 import { SacoleIcon } from '../components/SacoleIcon';
 import { compressImage, THEMES } from '../utils/helpers';
 
@@ -548,13 +548,24 @@ function Flavors({ store }: { store: any }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="w-full md:w-32 h-32 bg-gray-100 rounded-2xl flex items-center justify-center overflow-hidden relative border-2 border-dashed border-gray-300">
-                {imageUrl ? (
-                  <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <ImageIcon className="w-8 h-8 text-gray-400" />
-                )}
-                <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+              <div className="flex flex-col gap-2 w-full md:w-32">
+                <div className="w-full h-32 bg-gray-100 rounded-2xl flex items-center justify-center overflow-hidden relative border-2 border-dashed border-gray-300">
+                  {imageUrl ? (
+                    <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-8 h-8 text-gray-400" />
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <label className="flex-1 flex items-center justify-center p-2 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer transition-colors" title="Galeria">
+                    <ImageIcon className="w-5 h-5 text-gray-600" />
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  </label>
+                  <label className="flex-1 flex items-center justify-center p-2 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer transition-colors" title="Câmera">
+                    <Camera className="w-5 h-5 text-gray-600" />
+                    <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} className="hidden" />
+                  </label>
+                </div>
               </div>
               <div className="flex-1 space-y-4">
                 <div>
@@ -1249,15 +1260,28 @@ function SettingsPage({ store }: { store: any }) {
         <form onSubmit={handleSave} className="space-y-5">
           
           <div className="flex flex-col items-center mb-6">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden relative border-2 border-dashed border-gray-300 mb-2">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Logo" className="w-full h-full object-cover" />
-              ) : (
-                <ImageIcon className="w-8 h-8 text-gray-400" />
-              )}
-              <input type="file" accept="image/*" onChange={handleAvatarUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+            <div className="flex flex-col gap-3 items-center">
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-dashed border-gray-300">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <ImageIcon className="w-8 h-8 text-gray-400" />
+                )}
+              </div>
+              <div className="flex gap-2">
+                <label className="flex items-center justify-center p-2 px-4 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer transition-colors text-sm font-medium text-gray-700 gap-2" title="Galeria">
+                  <ImageIcon className="w-4 h-4" />
+                  Galeria
+                  <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                </label>
+                <label className="flex items-center justify-center p-2 px-4 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer transition-colors text-sm font-medium text-gray-700 gap-2" title="Câmera">
+                  <Camera className="w-4 h-4" />
+                  Câmera
+                  <input type="file" accept="image/*" capture="environment" onChange={handleAvatarUpload} className="hidden" />
+                </label>
+              </div>
             </div>
-            <span className="text-sm text-gray-500">Logo da Loja (Toque para alterar)</span>
+            <span className="text-sm text-gray-500 mt-3">Logo da Loja</span>
           </div>
 
           <div>
