@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, doc, getDoc, getDocs, addDoc, updateDoc, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, query, where, onSnapshot } from 'firebase/firestore';
 import { ShoppingCart, Plus, Minus, CheckCircle2, Copy, ArrowLeft, Image as ImageIcon, Truck, MapPin, Tag } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { SacoleIcon } from '../components/SacoleIcon';
@@ -50,11 +50,6 @@ export default function PublicStore() {
             setDeliveryMethod('pickup');
           }
           
-          // Fetch flavors
-          const flavorsQuery = query(collection(db, 'stores', storeId, 'flavors'), where('available', '==', true));
-          const flavorsSnap = await getDocs(flavorsQuery);
-          setFlavors(flavorsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
           // Fetch active promotions
           const promosQuery = query(collection(db, 'stores', storeId, 'promotions'), where('active', '==', true));
           const promosSnap = await getDocs(promosQuery);
@@ -68,6 +63,18 @@ export default function PublicStore() {
     };
     
     fetchStore();
+
+    // Real-time flavors
+    const flavorsQuery = query(collection(db, 'stores', storeId, 'flavors'), where('available', '==', true));
+    const unsubFlavors = onSnapshot(flavorsQuery, (snapshot) => {
+      setFlavors(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `stores/${storeId}/flavors`);
+    });
+
+    return () => {
+      unsubFlavors();
+    };
   }, [storeId]);
 
   const addToCart = async (flavorId: string) => {
@@ -75,36 +82,27 @@ export default function PublicStore() {
     if (!flavor) return;
 
     const currentQty = cart[flavorId] || 0;
+    const nextQty = currentQty + 1;
     
-    if (!flavor.allowPreorder && flavor.stock !== undefined && flavor.stock !== null) {
-      if (currentQty >= flavor.stock) {
-        alert(`Desculpe, temos apenas ${flavor.stock} unidade(s) de ${flavor.name} em estoque no momento.`);
-        
-        // Log demand alert for admin
-        try {
-          await addDoc(collection(db, 'stores', storeId!, 'demand_alerts'), {
-            flavorId: flavor.id,
-            flavorName: flavor.name,
-            requestedQuantity: currentQty + 1,
-            availableStock: flavor.stock,
-            createdAt: new Date().toISOString()
-          });
-        } catch (e) {
-          console.error("Error logging demand:", e);
-        }
-        return;
-      }
-    } else if (flavor.allowPreorder && flavor.maxPreorderQuantity !== undefined && flavor.maxPreorderQuantity !== null) {
-      // If pre-order is allowed, check if there's a maximum quantity
-      // The total allowed is stock + maxPreorderQuantity
-      const totalAllowed = (flavor.stock || 0) + flavor.maxPreorderQuantity;
-      if (currentQty >= totalAllowed) {
-        alert(`Desculpe, o limite máximo de encomendas para ${flavor.name} é de ${flavor.maxPreorderQuantity} unidade(s).`);
-        return;
-      }
+    // Check total limit (stock + maxPreorder)
+    const totalAllowed = (flavor.stock || 0) + (flavor.allowPreorder ? (flavor.maxPreorderQuantity || 0) : 0);
+    
+    if (nextQty > totalAllowed) {
+       alert(`Limite atingido para ${flavor.name}.`);
+       return;
     }
 
-    setCart(prev => ({ ...prev, [flavorId]: currentQty + 1 }));
+    // Check if it's sob encomenda
+    if (nextQty > (flavor.stock || 0)) {
+      if (!flavor.allowPreorder) {
+         alert(`Desculpe, estoque esgotado para ${flavor.name}.`);
+         return;
+      }
+      // It's a preorder
+      alert(`Atenção: A quantidade solicitada excede o estoque disponível. O excedente será tratado como "sob encomenda" e não está disponível à pronta entrega.`);
+    }
+
+    setCart(prev => ({ ...prev, [flavorId]: nextQty }));
   };
 
   const removeFromCart = (flavorId: string) => {
@@ -157,24 +155,33 @@ export default function PublicStore() {
     
     try {
       // Check stock again before finalizing
+      let sobEncomendaItems = [];
       for (const item of cartItems) {
         const flavorRef = doc(db, 'stores', storeId, 'flavors', item.id);
         const flavorSnap = await getDoc(flavorRef);
         if (flavorSnap.exists()) {
           const flavorData = flavorSnap.data();
-          if (!flavorData.allowPreorder && flavorData.stock !== undefined && flavorData.stock !== null) {
-            if (item.quantity > flavorData.stock) {
-              alert(`Desculpe, o estoque de ${item.name} acabou de mudar. Temos apenas ${flavorData.stock} unidade(s) disponíveis.`);
+          
+          // Check total limit
+          const totalAllowed = (flavorData.stock || 0) + (flavorData.allowPreorder ? (flavorData.maxPreorderQuantity || 0) : 0);
+          if (item.quantity > totalAllowed) {
+              alert(`Desculpe, o limite para ${item.name} foi atingido.`);
               return;
+          }
+
+          // Check if it's sob encomenda
+          if (item.quantity > (flavorData.stock || 0)) {
+            if (!flavorData.allowPreorder) {
+               alert(`Desculpe, estoque esgotado para ${item.name}.`);
+               return;
             }
-          } else if (flavorData.allowPreorder && flavorData.maxPreorderQuantity !== undefined && flavorData.maxPreorderQuantity !== null) {
-            const totalAllowed = (flavorData.stock || 0) + flavorData.maxPreorderQuantity;
-            if (item.quantity > totalAllowed) {
-              alert(`Desculpe, o limite máximo de encomendas para ${item.name} é de ${flavorData.maxPreorderQuantity} unidade(s).`);
-              return;
-            }
+            sobEncomendaItems.push(item.name);
           }
         }
+      }
+
+      if (sobEncomendaItems.length > 0) {
+        alert(`Atenção: Os itens ${sobEncomendaItems.join(', ')} excedem o estoque disponível e serão tratados como "sob encomenda".`);
       }
 
       const orderData = {
