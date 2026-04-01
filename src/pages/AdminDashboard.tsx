@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { logOut, auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, onSnapshot, doc, getDoc, setDoc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
-import { ShoppingBag, Settings, LogOut, Plus, Edit2, Trash2, Share2, Copy, CheckCircle2, ListTodo, Clock, Image as ImageIcon, BarChart3, Tag, Truck, MapPin, DollarSign } from 'lucide-react';
+import { ShoppingBag, Settings, LogOut, Plus, Edit2, Trash2, Share2, Copy, CheckCircle2, ListTodo, Clock, Image as ImageIcon, BarChart3, Tag, Truck, MapPin, DollarSign, Eye, EyeOff } from 'lucide-react';
 import { SacoleIcon } from '../components/SacoleIcon';
 import { compressImage, THEMES } from '../utils/helpers';
 
@@ -31,10 +31,10 @@ export default function AdminDashboard() {
     { path: '/admin', icon: <BarChart3 className="w-6 h-6" />, label: 'Dashboard' },
     { path: '/admin/pedidos', icon: <ShoppingBag className="w-6 h-6" />, label: 'Pedidos' },
     { path: '/admin/sabores', icon: <SacoleIcon className="w-6 h-6" />, label: 'Produtos' },
-    ...(store?.manufacturingEnabled !== false ? [{ path: '/admin/fabricacao', icon: <Clock className="w-6 h-6" />, label: 'Fabricação' }] : []),
-    { path: '/admin/compras', icon: <ListTodo className="w-6 h-6" />, label: 'Compras' },
-    ...(store?.expensesEnabled !== false ? [{ path: '/admin/despesas', icon: <DollarSign className="w-6 h-6" />, label: 'Despesas' }] : []),
-    { path: '/admin/promocoes', icon: <Tag className="w-6 h-6" />, label: 'Promoções' },
+    ...(store?.manufacturingEnabled ? [{ path: '/admin/fabricacao', icon: <Clock className="w-6 h-6" />, label: 'Fabricação' }] : []),
+    ...(store?.purchasesEnabled ? [{ path: '/admin/compras', icon: <ListTodo className="w-6 h-6" />, label: 'Compras' }] : []),
+    ...(store?.expensesEnabled ? [{ path: '/admin/despesas', icon: <DollarSign className="w-6 h-6" />, label: 'Despesas' }] : []),
+    ...(store?.promotionsEnabled ? [{ path: '/admin/promocoes', icon: <Tag className="w-6 h-6" />, label: 'Promoções' }] : []),
     { path: '/admin/configuracoes', icon: <Settings className="w-6 h-6" />, label: 'Ajustes' },
   ];
 
@@ -156,6 +156,7 @@ function DashboardStats({ store }: { store: any }) {
   const theme = THEMES[(store?.theme as keyof typeof THEMES) || 'orange'];
   const [orders, setOrders] = useState<any[]>([]);
   const [flavors, setFlavors] = useState<any[]>([]);
+  const [showValues, setShowValues] = useState(true);
   
   useEffect(() => {
     if (!store?.id) return;
@@ -204,24 +205,39 @@ function DashboardStats({ store }: { store: any }) {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 md:mb-8">Dashboard</h1>
+      <div className="flex justify-between items-center mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard</h1>
+        <button 
+          onClick={() => setShowValues(!showValues)}
+          className={`p-2 rounded-full ${theme.light} ${theme.text} hover:opacity-80 transition-opacity`}
+          title={showValues ? "Ocultar valores" : "Mostrar valores"}
+        >
+          {showValues ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+        </button>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className={`bg-white p-6 rounded-3xl shadow-sm border ${theme.border}`}>
           <h3 className="text-gray-500 font-medium mb-2">Lucro de Hoje</h3>
-          <p className="text-3xl font-bold text-green-600">R$ {todayProfit.toFixed(2).replace('.', ',')}</p>
-          <p className="text-sm text-gray-400 mt-2">{todayOrders.length} pedidos concluídos</p>
+          <p className="text-3xl font-bold text-green-600">
+            {showValues ? `R$ ${todayProfit.toFixed(2).replace('.', ',')}` : 'R$ ****'}
+          </p>
+          <p className="text-sm text-gray-400 mt-2">{showValues ? todayOrders.length : '***'} pedidos concluídos</p>
         </div>
         
         <div className={`bg-white p-6 rounded-3xl shadow-sm border ${theme.border}`}>
           <h3 className="text-gray-500 font-medium mb-2">Lucro do Mês</h3>
-          <p className="text-3xl font-bold text-blue-600">R$ {monthProfit.toFixed(2).replace('.', ',')}</p>
-          <p className="text-sm text-gray-400 mt-2">{monthOrders.length} pedidos concluídos</p>
+          <p className="text-3xl font-bold text-blue-600">
+            {showValues ? `R$ ${monthProfit.toFixed(2).replace('.', ',')}` : 'R$ ****'}
+          </p>
+          <p className="text-sm text-gray-400 mt-2">{showValues ? monthOrders.length : '***'} pedidos concluídos</p>
         </div>
 
         <div className={`bg-white p-6 rounded-3xl shadow-sm border ${theme.border}`}>
           <h3 className="text-gray-500 font-medium mb-2">Total de Pedidos</h3>
-          <p className={`text-3xl font-bold ${theme.text}`}>{orders.length}</p>
+          <p className={`text-3xl font-bold ${theme.text}`}>
+            {showValues ? orders.length : '***'}
+          </p>
           <p className="text-sm text-gray-400 mt-2">Desde o início</p>
         </div>
       </div>
@@ -238,7 +254,7 @@ function DashboardStats({ store }: { store: any }) {
                   </span>
                   <span className="font-medium text-gray-700">{item.name}</span>
                 </div>
-                <span className="font-bold text-gray-800">{item.count} un</span>
+                <span className="font-bold text-gray-800">{showValues ? `${item.count} un` : '***'}</span>
               </div>
             ))}
           </div>
@@ -408,6 +424,7 @@ function Flavors({ store }: { store: any }) {
   const [imageUrl, setImageUrl] = useState('');
   const [stock, setStock] = useState('');
   const [productionTime, setProductionTime] = useState('');
+  const [productionTimeUnit, setProductionTimeUnit] = useState('min');
 
   useEffect(() => {
     if (!store?.id) return;
@@ -450,6 +467,7 @@ function Flavors({ store }: { store: any }) {
         imageUrl,
         stock: parseInt(stock) || 0,
         productionTime: parseInt(productionTime) || 0,
+        productionTimeUnit,
         createdAt: editingFlavor ? editingFlavor.createdAt : new Date().toISOString()
       };
 
@@ -486,6 +504,7 @@ function Flavors({ store }: { store: any }) {
     setImageUrl('');
     setStock('');
     setProductionTime('');
+    setProductionTimeUnit('min');
     setIsAdding(false);
     setEditingFlavor(null);
   };
@@ -499,6 +518,7 @@ function Flavors({ store }: { store: any }) {
     setImageUrl(flavor.imageUrl || '');
     setStock(flavor.stock?.toString() || '0');
     setProductionTime(flavor.productionTime?.toString() || '0');
+    setProductionTimeUnit(flavor.productionTimeUnit || 'min');
     setEditingFlavor(flavor);
     setIsAdding(true);
   };
@@ -534,8 +554,8 @@ function Flavors({ store }: { store: any }) {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto</label>
                   <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: Morango com Nutella" />
                 </div>
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-[120px]">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                     <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none">
                       <option value="Sacolé">Sacolé</option>
@@ -545,19 +565,25 @@ function Flavors({ store }: { store: any }) {
                       <option value="Outros">Outros</option>
                     </select>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-[100px]">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Preço (R$)</label>
                     <input required type="number" step="0.01" min="0" value={price} onChange={e => setPrice(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 5.00" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-[100px]">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Estoque</label>
                     <input required type="number" min="0" value={stock} onChange={e => setStock(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 10" />
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tempo (min)</label>
-                    <input required type="number" min="0" value={productionTime} onChange={e => setProductionTime(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 30" />
+                  <div className="flex-1 min-w-[150px]">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tempo</label>
+                    <div className="flex gap-2">
+                      <input required type="number" min="0" value={productionTime} onChange={e => setProductionTime(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none" placeholder="Ex: 30" />
+                      <select value={productionTimeUnit} onChange={e => setProductionTimeUnit(e.target.value)} className="p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-opacity-50 outline-none">
+                        <option value="min">min</option>
+                        <option value="h">h</option>
+                      </select>
+                    </div>
                   </div>
-                  <div className="flex items-center pt-6">
+                  <div className="flex items-center pt-6 min-w-[100px]">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={available} onChange={e => setAvailable(e.target.checked)} className={`w-5 h-5 ${theme.text} rounded focus:ring-opacity-50`} />
                       <span className="text-gray-700 font-medium">Disponível</span>
@@ -682,7 +708,7 @@ function Manufacturing({ store }: { store: any }) {
       if (status === 'freezing') {
         const batch = batches.find(b => b.id === batchId);
         const flavor = flavors.find(f => f.id === batch?.flavorId);
-        const productionHours = flavor?.productionTime || 12;
+        const productionHours = flavor?.productionTimeUnit === 'h' ? flavor.productionTime : flavor.productionTime / 60;
         
         const readyAt = new Date();
         readyAt.setHours(readyAt.getHours() + productionHours);
@@ -1119,8 +1145,10 @@ function SettingsPage({ store }: { store: any }) {
   const [deliveryFee, setDeliveryFee] = useState('');
   const [pickupEnabled, setPickupEnabled] = useState(false);
   const [pickupAddress, setPickupAddress] = useState('');
-  const [manufacturingEnabled, setManufacturingEnabled] = useState(true);
-  const [expensesEnabled, setExpensesEnabled] = useState(true);
+  const [manufacturingEnabled, setManufacturingEnabled] = useState(false);
+  const [purchasesEnabled, setPurchasesEnabled] = useState(false);
+  const [expensesEnabled, setExpensesEnabled] = useState(false);
+  const [promotionsEnabled, setPromotionsEnabled] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -1134,8 +1162,10 @@ function SettingsPage({ store }: { store: any }) {
       setDeliveryFee(store.deliveryFee?.toString() || '');
       setPickupEnabled(store.pickupEnabled || false);
       setPickupAddress(store.pickupAddress || '');
-      setManufacturingEnabled(store.manufacturingEnabled !== false);
-      setExpensesEnabled(store.expensesEnabled !== false);
+      setManufacturingEnabled(store.manufacturingEnabled || false);
+      setPurchasesEnabled(store.purchasesEnabled || false);
+      setExpensesEnabled(store.expensesEnabled || false);
+      setPromotionsEnabled(store.promotionsEnabled || false);
     }
   }, [store]);
 
@@ -1168,7 +1198,9 @@ function SettingsPage({ store }: { store: any }) {
         pickupEnabled,
         pickupAddress,
         manufacturingEnabled,
-        expensesEnabled
+        purchasesEnabled,
+        expensesEnabled,
+        promotionsEnabled
       });
       alert('Configurações salvas com sucesso!');
     } catch (error) {
@@ -1291,8 +1323,22 @@ function SettingsPage({ store }: { store: any }) {
 
               <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                 <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={purchasesEnabled} onChange={e => setPurchasesEnabled(e.target.checked)} className={`w-5 h-5 ${currentTheme.text} rounded focus:ring-opacity-50`} />
+                  <span className="text-gray-800 font-medium">Habilitar Compras</span>
+                </label>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={expensesEnabled} onChange={e => setExpensesEnabled(e.target.checked)} className={`w-5 h-5 ${currentTheme.text} rounded focus:ring-opacity-50`} />
                   <span className="text-gray-800 font-medium">Habilitar Despesas</span>
+                </label>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={promotionsEnabled} onChange={e => setPromotionsEnabled(e.target.checked)} className={`w-5 h-5 ${currentTheme.text} rounded focus:ring-opacity-50`} />
+                  <span className="text-gray-800 font-medium">Habilitar Promoções</span>
                 </label>
               </div>
             </div>
