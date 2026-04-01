@@ -365,7 +365,7 @@ export default function PublicStore() {
   return (
     <div className={`min-h-screen ${theme.light} pb-32`}>
       {/* Header */}
-      <header className={`bg-gradient-to-r ${theme.gradient} text-white shadow-md sticky top-0 z-20 overflow-hidden transition-all duration-300`}>
+      <header className={`bg-gradient-to-r ${theme.gradient} text-white shadow-md fixed top-0 left-0 right-0 z-20 overflow-hidden transition-all duration-300`}>
         {/* Decorative background pattern */}
         <div className="absolute inset-0 opacity-10 pointer-events-none">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -419,7 +419,7 @@ export default function PublicStore() {
       </header>
 
       {/* Flavors Grid */}
-      <main className="max-w-4xl mx-auto p-4 md:p-6">
+      <main className="max-w-4xl mx-auto p-4 md:p-6 pt-[300px] md:pt-[200px]">
         {flavors.length === 0 ? (
           <div className="text-center py-12">
             <SacoleIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
