@@ -534,6 +534,7 @@ function Flavors({ store }: { store: any }) {
         allowPreorder,
         productionTime: parseInt(productionTime) || 0,
         productionTimeUnit,
+        currentPreorderCount: editingFlavor ? (editingFlavor.currentPreorderCount || 0) : 0,
         createdAt: editingFlavor ? editingFlavor.createdAt : new Date().toISOString()
       };
 
@@ -745,10 +746,27 @@ function Flavors({ store }: { store: any }) {
                   </span>
                   <span className={`text-xs font-medium px-2 py-1 rounded-md w-fit ${flavor.stock > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
                     {flavor.stock > 0 ? `Estoque: ${flavor.stock}` : 'Esgotado'}
-                    {flavor.allowPreorder && ' (Aceita Encomenda)'}
                   </span>
+                  {flavor.allowPreorder && (
+                    <span className="text-xs font-medium px-2 py-1 rounded-md w-fit bg-purple-100 text-purple-700">
+                      Encomendas: {flavor.currentPreorderCount || 0} / {flavor.maxPreorderQuantity}
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-1">
+                  {flavor.allowPreorder && (
+                    <button 
+                      onClick={async () => {
+                        if (window.confirm('Resetar contador de encomendas para 0?')) {
+                          await updateDoc(doc(db, 'stores', store.id, 'flavors', flavor.id), { currentPreorderCount: 0 });
+                        }
+                      }}
+                      className="p-2 text-purple-500 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Resetar Encomendas"
+                    >
+                      <Clock className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                  )}
                   <button onClick={() => editFlavor(flavor)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
                     <Edit2 className="w-4 h-4 md:w-5 md:h-5" />
                   </button>

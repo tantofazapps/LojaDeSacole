@@ -84,22 +84,22 @@ export default function PublicStore() {
     const currentQty = cart[flavorId] || 0;
     const nextQty = currentQty + 1;
     
-    // Check total limit (stock + maxPreorder)
-    const totalAllowed = (flavor.stock || 0) + (flavor.allowPreorder ? (flavor.maxPreorderQuantity || 0) : 0);
-    
-    if (nextQty > totalAllowed) {
-       alert(`Limite atingido para ${flavor.name}.`);
-       return;
-    }
-
-    // Check if it's sob encomenda
-    if (nextQty > (flavor.stock || 0)) {
-      if (!flavor.allowPreorder) {
-         alert(`Desculpe, estoque esgotado para ${flavor.name}.`);
-         return;
+    // Check if adding this item is allowed
+    if (flavor.stock > 0) {
+      // If there is stock, only allow adding up to stock
+      if (nextQty > flavor.stock) {
+        alert(`Limite de estoque atingido para ${flavor.name}.`);
+        return;
       }
-      // It's a preorder
-      alert(`Atenção: A quantidade solicitada excede o estoque disponível. O excedente será tratado como "sob encomenda" e não está disponível à pronta entrega.`);
+    } else if (flavor.allowPreorder) {
+      // If no stock, allow adding up to maxPreorderQuantity
+      if (nextQty > (flavor.maxPreorderQuantity || 0)) {
+        alert(`Limite de encomendas atingido para ${flavor.name}.`);
+        return;
+      }
+    } else {
+      alert(`Produto esgotado para ${flavor.name}.`);
+      return;
     }
 
     setCart(prev => ({ ...prev, [flavorId]: nextQty }));
@@ -155,33 +155,27 @@ export default function PublicStore() {
     
     try {
       // Check stock again before finalizing
-      let sobEncomendaItems = [];
       for (const item of cartItems) {
         const flavorRef = doc(db, 'stores', storeId, 'flavors', item.id);
         const flavorSnap = await getDoc(flavorRef);
         if (flavorSnap.exists()) {
           const flavorData = flavorSnap.data();
           
-          // Check total limit
-          const totalAllowed = (flavorData.stock || 0) + (flavorData.allowPreorder ? (flavorData.maxPreorderQuantity || 0) : 0);
-          if (item.quantity > totalAllowed) {
-              alert(`Desculpe, o limite para ${item.name} foi atingido.`);
+          if (flavorData.stock > 0) {
+            if (item.quantity > flavorData.stock) {
+              alert(`Desculpe, o limite de estoque para ${item.name} foi atingido.`);
               return;
-          }
-
-          // Check if it's sob encomenda
-          if (item.quantity > (flavorData.stock || 0)) {
-            if (!flavorData.allowPreorder) {
-               alert(`Desculpe, estoque esgotado para ${item.name}.`);
-               return;
             }
-            sobEncomendaItems.push(item.name);
+          } else if (flavorData.allowPreorder) {
+            if (item.quantity > (flavorData.maxPreorderQuantity || 0)) {
+              alert(`Desculpe, o limite de encomendas para ${item.name} foi atingido.`);
+              return;
+            }
+          } else {
+            alert(`Desculpe, estoque esgotado para ${item.name}.`);
+            return;
           }
         }
-      }
-
-      if (sobEncomendaItems.length > 0) {
-        alert(`Atenção: Os itens ${sobEncomendaItems.join(', ')} excedem o estoque disponível e serão tratados como "sob encomenda".`);
       }
 
       const orderData = {
@@ -205,16 +199,33 @@ export default function PublicStore() {
       const docRef = await addDoc(collection(db, 'stores', storeId, 'orders'), orderData);
       console.log("Order saved successfully:", docRef.id);
 
-      // Decrement stock
+      // Decrement stock or increment preorder count
       for (const item of cartItems) {
         const flavorRef = doc(db, 'stores', storeId, 'flavors', item.id);
         const flavorSnap = await getDoc(flavorRef);
         if (flavorSnap.exists()) {
           const flavorData = flavorSnap.data();
-          if (flavorData.stock !== undefined && flavorData.stock !== null) {
-            await updateDoc(flavorRef, {
-              stock: Math.max(0, flavorData.stock - item.quantity)
-            });
+          
+          const stockToTake = Math.min(item.quantity, flavorData.stock || 0);
+          const preorderToTake = item.quantity - stockToTake;
+
+          const updateData: any = {};
+          if (stockToTake > 0) {
+            updateData.stock = Math.max(0, (flavorData.stock || 0) - stockToTake);
+          }
+          
+          if (preorderToTake > 0) {
+            const newPreorderCount = (flavorData.currentPreorderCount || 0) + preorderToTake;
+            updateData.currentPreorderCount = newPreorderCount;
+            
+            // Disable preorder if limit reached
+            if (flavorData.maxPreorderQuantity && newPreorderCount >= flavorData.maxPreorderQuantity) {
+              updateData.allowPreorder = false;
+            }
+          }
+          
+          if (Object.keys(updateData).length > 0) {
+            await updateDoc(flavorRef, updateData);
           }
         }
       }
