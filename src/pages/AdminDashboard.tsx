@@ -156,8 +156,15 @@ function DashboardStats({ store }: { store: any }) {
   const theme = THEMES[(store?.theme as keyof typeof THEMES) || 'orange'];
   const [orders, setOrders] = useState<any[]>([]);
   const [flavors, setFlavors] = useState<any[]>([]);
-  const [showValues, setShowValues] = useState(true);
+  const [showValues, setShowValues] = useState(() => {
+    const saved = localStorage.getItem('adminShowValues');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   
+  useEffect(() => {
+    localStorage.setItem('adminShowValues', JSON.stringify(showValues));
+  }, [showValues]);
+
   useEffect(() => {
     if (!store?.id) return;
     
