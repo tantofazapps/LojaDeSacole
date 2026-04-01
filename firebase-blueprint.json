@@ -24,7 +24,11 @@
         "deliveryEnabled": { "type": "boolean" },
         "deliveryFee": { "type": "number" },
         "pickupEnabled": { "type": "boolean" },
-        "pickupAddress": { "type": "string" }
+        "pickupAddress": { "type": "string" },
+        "manufacturingEnabled": { "type": "boolean" },
+        "expensesEnabled": { "type": "boolean" },
+        "purchasesEnabled": { "type": "boolean" },
+        "promotionsEnabled": { "type": "boolean" }
       },
       "required": ["name", "ownerId"]
     },
@@ -36,11 +40,15 @@
         "name": { "type": "string" },
         "description": { "type": "string" },
         "price": { "type": "number" },
+        "category": { "type": "string" },
         "available": { "type": "boolean" },
         "imageUrl": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "stock": { "type": "number" },
+        "productionTime": { "type": "number" },
+        "productionTimeUnit": { "type": "string", "enum": ["min", "h"] }
       },
-      "required": ["name", "price", "available", "createdAt"]
+      "required": ["name", "price", "available", "createdAt", "stock", "productionTime"]
     },
     "Order": {
       "title": "Order",

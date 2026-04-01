@@ -54,7 +54,7 @@ service cloud.firestore {
     
     function isValidStore() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['name', 'ownerId', 'pixKey', 'phone', 'avatarUrl', 'theme', 'deliveryEnabled', 'deliveryFee', 'pickupEnabled', 'pickupAddress', 'manufacturingEnabled', 'expensesEnabled']) &&
+      return hasOnlyAllowedFields(['name', 'ownerId', 'pixKey', 'phone', 'avatarUrl', 'theme', 'deliveryEnabled', 'deliveryFee', 'pickupEnabled', 'pickupAddress', 'manufacturingEnabled', 'expensesEnabled', 'purchasesEnabled', 'promotionsEnabled']) &&
              hasRequiredFields(['name', 'ownerId']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() < 50 &&
@@ -67,12 +67,14 @@ service cloud.firestore {
              (!('pickupEnabled' in data) || data.pickupEnabled is bool) &&
              (!('pickupAddress' in data) || (data.pickupAddress is string && data.pickupAddress.size() <= 200)) &&
              (!('manufacturingEnabled' in data) || data.manufacturingEnabled is bool) &&
-             (!('expensesEnabled' in data) || data.expensesEnabled is bool);
+             (!('expensesEnabled' in data) || data.expensesEnabled is bool) &&
+             (!('purchasesEnabled' in data) || data.purchasesEnabled is bool) &&
+             (!('promotionsEnabled' in data) || data.promotionsEnabled is bool);
     }
     
     function isValidFlavor() {
       let data = request.resource.data;
-      return hasOnlyAllowedFields(['name', 'description', 'price', 'category', 'available', 'imageUrl', 'createdAt', 'stock', 'productionTime']) &&
+      return hasOnlyAllowedFields(['name', 'description', 'price', 'category', 'available', 'imageUrl', 'createdAt', 'stock', 'productionTime', 'productionTimeUnit']) &&
              hasRequiredFields(['name', 'price', 'available', 'createdAt', 'stock', 'productionTime']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
@@ -81,6 +83,7 @@ service cloud.firestore {
              data.available is bool &&
              data.stock is number && data.stock >= 0 &&
              data.productionTime is number && data.productionTime >= 0 &&
+             (!('productionTimeUnit' in data) || (data.productionTimeUnit in ['min', 'h'])) &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500000)) &&
              isValidDateString(data.createdAt);
     }
